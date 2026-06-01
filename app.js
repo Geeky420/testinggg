@@ -102,6 +102,12 @@ const categories = [
   { id: "costs", label: "Costs", icon: "receipt" }
 ];
 
+const costModes = [
+  { id: "logged", label: "Logged", header: "Total spent" },
+  { id: "invested", label: "Invested", header: "Total invested" },
+  { id: "value", label: "Value", header: "Sell value" }
+];
+
 const storageKey = "geeky-garage-state-v1";
 
 const seedProfiles = {
@@ -263,6 +269,7 @@ let state = loadState();
 let selectedVehicle = state.selectedVehicle || getVehicleNames(state.vehicles)[0] || "Yukon";
 let activeFilter = "all";
 let activeView = workspaceViews.some((view) => view.id === state.activeView) ? state.activeView : "logbook";
+let costMode = costModes.some((mode) => mode.id === state.costMode) ? state.costMode : "logged";
 let vehicleMenuOpen = false;
 let addVehicleModalOpen = false;
 
@@ -275,6 +282,7 @@ const els = {
   profileView: document.querySelector("#profileView"),
   diagnosticsView: document.querySelector("#diagnosticsView"),
   vehicleTitle: document.querySelector("#vehicleTitle"),
+  headerTotalLabel: document.querySelector("#headerTotalLabel"),
   headerTotal: document.querySelector("#headerTotal"),
   headerEntries: document.querySelector("#headerEntries"),
   activeVehicleLabel: document.querySelector("#activeVehicleLabel"),
@@ -289,6 +297,8 @@ const els = {
   entryList: document.querySelector("#entryList"),
   costTitle: document.querySelector("#costTitle"),
   costSubtitle: document.querySelector("#costSubtitle"),
+  costModeToggle: document.querySelector("#costModeToggle"),
+  valueSummary: document.querySelector("#valueSummary"),
   costBreakdown: document.querySelector("#costBreakdown"),
   noteCount: document.querySelector("#noteCount"),
   noteList: document.querySelector("#noteList"),
@@ -398,6 +408,15 @@ function init() {
     render();
   });
 
+  els.costModeToggle.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-cost-mode]");
+    if (!button) return;
+    costMode = button.dataset.costMode;
+    state.costMode = costMode;
+    saveState();
+    render();
+  });
+
   els.entryForm.addEventListener("submit", (event) => {
     event.preventDefault();
     addEntry();
@@ -465,6 +484,7 @@ function loadState() {
         profiles: mergeProfiles(saved.profiles, vehicles),
         diagnostics: normalizeDiagnostics(saved.diagnostics, vehicles),
         theme: saved.theme === "night" ? "night" : "day",
+        costMode: costModes.some((mode) => mode.id === saved.costMode) ? saved.costMode : "logged",
         activeView: workspaceViews.some((view) => view.id === saved.activeView) ? saved.activeView : "logbook"
       };
     }
@@ -479,6 +499,7 @@ function loadState() {
     profiles: mergeProfiles(),
     diagnostics: normalizeDiagnostics(seedDiagnostics),
     theme: "day",
+    costMode: "logged",
     activeView: "logbook"
   };
 }
@@ -535,9 +556,14 @@ function normalizeDiagnostics(savedDiagnostics, vehicleRecords = defaultVehicles
 function defaultProfileFor(record) {
   const type = String(record?.type || "Automotive");
   const name = String(record?.name || "");
+  const valueFields = {
+    pricePaid: "",
+    sellValue: ""
+  };
 
   if (type === "Boat") {
     return {
+      ...valueFields,
       profileType: "Boat",
       year: "",
       make: "",
@@ -555,6 +581,7 @@ function defaultProfileFor(record) {
 
   if (["Motorcycle", "Dirt Bike", "Side-by-side", "ATV"].includes(type)) {
     return {
+      ...valueFields,
       profileType: type,
       year: "",
       make: "",
@@ -573,6 +600,7 @@ function defaultProfileFor(record) {
 
   if (type === "Trailer") {
     return {
+      ...valueFields,
       profileType: "Trailer",
       year: "",
       make: "",
@@ -587,6 +615,7 @@ function defaultProfileFor(record) {
   }
 
   return {
+    ...valueFields,
     profileType: type === "Other" ? "Other" : "Automotive",
     year: "",
     make: "",
@@ -608,6 +637,7 @@ function defaultProfileFor(record) {
 function saveState() {
   state.activeView = activeView;
   state.selectedVehicle = selectedVehicle;
+  state.costMode = costMode;
   localStorage.setItem(storageKey, JSON.stringify(state));
 }
 
@@ -631,6 +661,8 @@ async function addVehicle(form) {
       year: String(formData.get("year") || "").trim(),
       make: String(formData.get("make") || "").trim(),
       model: String(formData.get("model") || name).trim() || name,
+      pricePaid: normalizeMoneyInput(formData.get("pricePaid")),
+      sellValue: normalizeMoneyInput(formData.get("sellValue")),
       photoDataUrl
     }
   };
@@ -703,7 +735,8 @@ function saveProfile(form) {
   const formData = new FormData(form);
   const current = getProfile(selectedVehicle);
   const updates = profileFieldsFor(selectedVehicle).reduce((profile, field) => {
-    profile[field.key] = String(formData.get(field.key) || "").trim();
+    const value = formData.get(field.key);
+    profile[field.key] = field.money ? normalizeMoneyInput(value) : String(value || "").trim();
     return profile;
   }, {});
 
@@ -767,24 +800,26 @@ function applyTheme(theme) {
 function render() {
   const vehicleEntries = getVehicleEntries(selectedVehicle);
   const shownEntries = filterEntries(vehicleEntries, activeFilter);
-  const total = sumCost(vehicleEntries);
+  const costSummary = getCostSummary(vehicleEntries, getProfile(selectedVehicle));
+  const costDisplay = getCostDisplay(costSummary);
 
   applyVehicleTheme(selectedVehicle);
   els.garageSummary.textContent = `${state.vehicles.length} ${state.vehicles.length === 1 ? "toy" : "toys"} tracked`;
   els.vehicleTitle.textContent = selectedVehicle;
-  els.headerTotal.textContent = money(total);
+  els.headerTotalLabel.textContent = costDisplay.header;
+  els.headerTotal.textContent = money(costDisplay.value);
   els.headerEntries.textContent = String(vehicleEntries.length);
   els.activeVehicleLabel.textContent = selectedVehicle;
   els.logTitle.textContent = activeFilter === "all" ? "All entries" : getCategoryLabel(activeFilter);
   els.visibleCount.textContent = `${shownEntries.length} shown`;
-  els.costTitle.textContent = money(total);
-  els.costSubtitle.textContent = `Tracked for ${selectedVehicle}`;
+  els.costTitle.textContent = money(costDisplay.value);
+  els.costSubtitle.textContent = costDisplay.subtitle;
 
   renderVehicles();
   renderWorkspaceTabs();
   renderFilters();
   renderEntries(shownEntries);
-  renderCosts(vehicleEntries);
+  renderCosts(vehicleEntries, costSummary);
   renderNotes(vehicleEntries);
   renderProfile();
   renderDiagnostics();
@@ -813,10 +848,35 @@ function renderWorkspaceTabs() {
     .join("");
 }
 
+function getCostDisplay(summary, vehicle = selectedVehicle) {
+  if (costMode === "invested") {
+    return {
+      header: "Total invested",
+      value: summary.totalInvested,
+      subtitle: `${money(summary.pricePaid)} price paid + ${money(summary.loggedTotal)} logged`
+    };
+  }
+
+  if (costMode === "value") {
+    return {
+      header: "Sell value",
+      value: summary.sellValue,
+      subtitle: summary.sellValue ? `Estimated value for ${vehicle}` : `Add sell value in Vehicle Profile`
+    };
+  }
+
+  return {
+    header: "Total spent",
+    value: summary.loggedTotal,
+    subtitle: `Logged maintenance, repairs, upgrades, and notes`
+  };
+}
+
 function renderVehicles() {
   const currentRecord = getVehicleRecord(selectedVehicle);
   const currentProfile = getProfile(selectedVehicle);
   const entries = getVehicleEntries(selectedVehicle);
+  const currentCostDisplay = getCostDisplay(getCostSummary(entries, currentProfile), selectedVehicle);
   const otherVehicles = state.vehicles.filter((vehicle) => vehicle.name !== selectedVehicle);
   const descriptor = vehicleDescriptor(selectedVehicle);
   const menuClass = vehicleMenuOpen ? " is-open" : "";
@@ -835,8 +895,8 @@ function renderVehicles() {
           <span class="current-vehicle-info">${escapeHtml(descriptor || "Add profile details")}</span>
         </span>
         <span class="current-vehicle-stats">
-          <strong>${money(sumCost(entries))}</strong>
-          <span>${entries.length} ${entries.length === 1 ? "entry" : "entries"}</span>
+          <strong>${money(currentCostDisplay.value)}</strong>
+          <span>${costMode === "logged" ? `${entries.length} ${entries.length === 1 ? "entry" : "entries"}` : currentCostDisplay.header}</span>
           ${icon("chevron")}
         </span>
       </button>
@@ -910,6 +970,16 @@ function renderVehicles() {
               <input name="model" type="text" placeholder="CRF250R" />
             </label>
 
+            <label>
+              <span>Price paid</span>
+              <input name="pricePaid" type="number" min="0" step="0.01" placeholder="8500" />
+            </label>
+
+            <label>
+              <span>Sell value</span>
+              <input name="sellValue" type="number" min="0" step="0.01" placeholder="12000" />
+            </label>
+
             <label class="field-wide">
               <span>Background photo</span>
               <input name="vehiclePhoto" type="file" accept="image/*" />
@@ -930,6 +1000,7 @@ function renderVehicleOption(record) {
   const entries = getVehicleEntries(record.name);
   const profile = getProfile(record.name);
   const info = vehicleDescriptor(record.name) || `${record.type || "Vehicle"} profile`;
+  const costDisplay = getCostDisplay(getCostSummary(entries, profile), record.name);
 
   return `
     <button class="vehicle-option" type="button" data-vehicle="${escapeAttr(record.name)}" style="${vehicleThemeStyle(record.name)}">
@@ -941,8 +1012,8 @@ function renderVehicleOption(record) {
         <span class="vehicle-meta">${escapeHtml(record.type || "Vehicle")} / ${escapeHtml(info)}</span>
       </span>
       <span class="vehicle-total">
-        ${money(sumCost(entries))}
-        <small>${entries.length} logs</small>
+        ${money(costDisplay.value)}
+        <small>${costMode === "logged" ? `${entries.length} logs` : costDisplay.header}</small>
       </span>
     </button>
   `;
@@ -1087,6 +1158,7 @@ function renderDiagnostics() {
 function renderProfileField(field, value) {
   const wideClass = field.wide ? " field-wide" : "";
   const escapedValue = escapeAttr(value);
+  const moneyAttrs = field.money ? ' min="0" step="0.01"' : "";
   if (field.type === "textarea") {
     return `
       <label class="${wideClass.trim()}">
@@ -1099,7 +1171,7 @@ function renderProfileField(field, value) {
   return `
     <label class="${wideClass.trim()}">
       <span>${field.label}</span>
-      <input name="${field.key}" type="${field.inputType || "text"}" value="${escapedValue}" placeholder="${escapeAttr(field.placeholder || "")}" />
+      <input name="${field.key}" type="${field.inputType || "text"}" value="${escapedValue}" placeholder="${escapeAttr(field.placeholder || "")}"${moneyAttrs} />
     </label>
   `;
 }
@@ -1175,6 +1247,8 @@ function profileFieldsFor(vehicle) {
       { key: "year", label: "Year" },
       { key: "make", label: "Boat make" },
       { key: "model", label: "Boat model" },
+      { key: "pricePaid", label: "Price paid", inputType: "number", money: true, placeholder: "8500" },
+      { key: "sellValue", label: "Sell value", inputType: "number", money: true, placeholder: "12000" },
       { key: "hullId", label: "Hull ID" },
       { key: "engine", label: "Engine make/model" },
       { key: "engineSerial", label: "Engine serial" },
@@ -1192,6 +1266,8 @@ function profileFieldsFor(vehicle) {
       { key: "year", label: "Year" },
       { key: "make", label: "Make" },
       { key: "model", label: "Model" },
+      { key: "pricePaid", label: "Price paid", inputType: "number", money: true, placeholder: "8500" },
+      { key: "sellValue", label: "Sell value", inputType: "number", money: true, placeholder: "12000" },
       { key: "engine", label: "Engine / cc" },
       { key: "vin", label: "VIN / frame ID" },
       { key: "mileageHours", label: "Mileage / hours" },
@@ -1210,6 +1286,8 @@ function profileFieldsFor(vehicle) {
       { key: "year", label: "Year" },
       { key: "make", label: "Make" },
       { key: "model", label: "Model" },
+      { key: "pricePaid", label: "Price paid", inputType: "number", money: true, placeholder: "8500" },
+      { key: "sellValue", label: "Sell value", inputType: "number", money: true, placeholder: "12000" },
       { key: "vin", label: "VIN / serial" },
       { key: "axles", label: "Axles" },
       { key: "tireSize", label: "Tire size" },
@@ -1224,6 +1302,8 @@ function profileFieldsFor(vehicle) {
     { key: "year", label: "Year" },
     { key: "make", label: "Make" },
     { key: "model", label: "Model" },
+    { key: "pricePaid", label: "Price paid", inputType: "number", money: true, placeholder: "8500" },
+    { key: "sellValue", label: "Sell value", inputType: "number", money: true, placeholder: "12000" },
     { key: "trim", label: "Trim" },
     { key: "engine", label: "Engine" },
     { key: "transmission", label: "Transmission" },
@@ -1276,7 +1356,41 @@ function renderEntries(entries) {
     .join("");
 }
 
-function renderCosts(entries) {
+function renderCosts(entries, summary = getCostSummary(entries, getProfile(selectedVehicle))) {
+  els.costModeToggle.innerHTML = costModes
+    .map((mode) => `
+      <button class="cost-mode-button ${mode.id === costMode ? "active" : ""}" type="button" data-cost-mode="${mode.id}" aria-pressed="${mode.id === costMode}">
+        ${mode.label}
+      </button>
+    `)
+    .join("");
+
+  const netClass = summary.netValue >= 0 ? "positive" : "negative";
+  const netLabel = summary.sellValue ? (summary.netValue >= 0 ? "Potential gain" : "Potential loss") : "Set sell value";
+
+  els.valueSummary.innerHTML = `
+    <div class="value-row">
+      <span>Price paid</span>
+      <strong>${money(summary.pricePaid)}</strong>
+    </div>
+    <div class="value-row">
+      <span>Logged spend</span>
+      <strong>${money(summary.loggedTotal)}</strong>
+    </div>
+    <div class="value-row strong">
+      <span>Full investment</span>
+      <strong>${money(summary.totalInvested)}</strong>
+    </div>
+    <div class="value-row">
+      <span>Sell value</span>
+      <strong>${money(summary.sellValue)}</strong>
+    </div>
+    <div class="value-row ${summary.sellValue ? netClass : ""}">
+      <span>${netLabel}</span>
+      <strong>${summary.sellValue ? money(Math.abs(summary.netValue)) : "Add in profile"}</strong>
+    </div>
+  `;
+
   const rows = ["maintenance", "repairs", "upgrades", "notes"].map((category) => {
     const value = sumCost(entries.filter((entry) => entry.category === category));
     return `
@@ -1398,6 +1512,21 @@ function filterEntries(entries, filter) {
   return entries.filter((entry) => entry.category === filter);
 }
 
+function getCostSummary(entries, profile) {
+  const loggedTotal = sumCost(entries);
+  const pricePaid = moneyNumber(profile.pricePaid);
+  const sellValue = moneyNumber(profile.sellValue);
+  const totalInvested = pricePaid + loggedTotal;
+
+  return {
+    loggedTotal,
+    pricePaid,
+    sellValue,
+    totalInvested,
+    netValue: sellValue - totalInvested
+  };
+}
+
 function sumCost(entries) {
   return entries.reduce((total, entry) => total + Number(entry.cost || 0), 0);
 }
@@ -1415,6 +1544,16 @@ function money(value) {
     style: "currency",
     currency: "USD"
   }).format(Number(value || 0));
+}
+
+function moneyNumber(value) {
+  const parsed = Number.parseFloat(String(value || "").replaceAll(",", "").replaceAll("$", ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function normalizeMoneyInput(value) {
+  const parsed = moneyNumber(value);
+  return parsed ? String(parsed) : "";
 }
 
 function formatDate(date) {
