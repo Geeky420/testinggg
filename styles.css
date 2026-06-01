@@ -1199,6 +1199,229 @@ button {
   font-size: 13px;
 }
 
+.entry-detail-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.entry-detail-hero {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid color-mix(in srgb, var(--vehicle-accent) 42%, var(--line) 58%);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--vehicle-accent) 32%, transparent) 0, transparent 36%),
+    linear-gradient(135deg, var(--vehicle-accent-dark) 0%, #090807 55%, var(--vehicle-accent-strong) 100%);
+  color: #ffffff;
+  box-shadow: var(--shadow);
+}
+
+.entry-detail-hero-main {
+  display: grid;
+  gap: 16px;
+}
+
+.entry-back-button {
+  width: fit-content;
+}
+
+.entry-detail-hero .label {
+  color: color-mix(in srgb, #ffffff 72%, var(--vehicle-accent) 28%);
+}
+
+.entry-detail-hero h3 {
+  max-width: 900px;
+  margin: 0 0 10px;
+  font-size: clamp(30px, 5vw, 54px);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+
+.entry-detail-hero .status-badge,
+.entry-detail-hero .priority-pill,
+.entry-detail-hero .flag-pill,
+.entry-detail-hero .schedule-meta {
+  background: rgba(255, 255, 255, 0.13);
+  color: #ffffff;
+}
+
+.entry-detail-stat-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.entry-detail-stat-strip div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.entry-detail-stat-strip span {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.entry-detail-stat-strip strong {
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 950;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.entry-detail-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 18px;
+  align-items: start;
+}
+
+.entry-detail-form,
+.entry-summary-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 94%, transparent);
+  box-shadow: var(--shadow);
+}
+
+.entry-detail-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+  padding: 18px;
+}
+
+.entry-detail-aside {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.entry-summary-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.entry-summary-symbol {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.entry-summary-symbol span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--status-color) 13%, transparent);
+  color: var(--status-color);
+}
+
+.entry-summary-symbol strong {
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.entry-summary-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.entry-summary-rows div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.entry-summary-rows div:last-child {
+  border-bottom: 0;
+}
+
+.entry-summary-rows span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.entry-summary-rows strong {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 950;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.linked-diagnostic {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.linked-diagnostic strong {
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.linked-diagnostic span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.entry-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in srgb, var(--red) 34%, var(--line) 66%);
+  border-radius: 8px;
+  background: var(--danger-soft);
+  color: var(--red);
+  font-size: 14px;
+  font-weight: 950;
+}
+
+.danger-button:hover,
+.danger-button:focus-visible {
+  border-color: var(--red);
+  outline: 3px solid color-mix(in srgb, var(--red) 18%, transparent);
+}
+
+.entry-detail-empty {
+  display: grid;
+  gap: 12px;
+}
+
 .profile-layout,
 .diagnostic-layout {
   display: grid;
@@ -1631,6 +1854,17 @@ textarea:focus {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+.entry-card:hover,
+.entry-card:focus-visible {
+  border-color: var(--vehicle-accent);
+  box-shadow: 0 12px 30px rgba(34, 20, 9, 0.08);
+  outline: none;
+  transform: translateY(-1px);
 }
 
 .entry-icon {
@@ -1984,6 +2218,10 @@ textarea:focus {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .entry-detail-layout {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+
   .profile-layout {
     grid-template-columns: minmax(0, 1fr) 300px;
   }
@@ -2010,7 +2248,8 @@ textarea:focus {
   .content-grid,
   .profile-layout,
   .dashboard-layout,
-  .dashboard-layout.lower {
+  .dashboard-layout.lower,
+  .entry-detail-layout {
     display: grid;
     grid-template-columns: 1fr;
   }
@@ -2139,6 +2378,42 @@ textarea:focus {
 
   .entry-form {
     grid-template-columns: 1fr;
+  }
+
+  .entry-detail-hero {
+    padding: 14px;
+  }
+
+  .entry-detail-hero h3 {
+    font-size: 32px;
+  }
+
+  .entry-detail-stat-strip,
+  .entry-detail-form {
+    grid-template-columns: 1fr;
+  }
+
+  .entry-detail-form,
+  .entry-summary-card {
+    padding: 14px;
+  }
+
+  .entry-detail-actions {
+    display: grid;
+  }
+
+  .entry-detail-actions .save-button,
+  .entry-detail-actions .danger-button,
+  .entry-back-button {
+    width: 100%;
+  }
+
+  .entry-summary-rows div {
+    grid-template-columns: 1fr;
+  }
+
+  .entry-summary-rows strong {
+    text-align: left;
   }
 
   .dashboard-stat-grid {

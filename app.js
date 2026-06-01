@@ -132,6 +132,7 @@ const priorityLevels = [
 ];
 
 const diagnosticStatuses = ["Open", "Watching", "Waiting on parts", "Scheduled", "Done"];
+const entryStatuses = ["Logged", "Open", "Scheduled", "Watching", "Waiting on parts", "Done"];
 
 const storageKey = "geeky-garage-state-v1";
 
@@ -299,8 +300,9 @@ const seedDiagnostics = [
 
 let state = loadState();
 let selectedVehicle = state.selectedVehicle || getVehicleNames(state.vehicles)[0] || "Yukon";
+let selectedEntryId = state.selectedEntryId || "";
 let activeFilter = "all";
-let activeView = workspaceViews.some((view) => view.id === state.activeView) ? state.activeView : "dashboard";
+let activeView = isKnownView(state.activeView) ? state.activeView : "dashboard";
 let costMode = costModes.some((mode) => mode.id === state.costMode) ? state.costMode : "logged";
 let vehicleMenuOpen = false;
 let addVehicleModalOpen = false;
@@ -312,6 +314,7 @@ const els = {
   filterBar: document.querySelector("#filterBar"),
   garageSummary: document.querySelector("#garageSummary"),
   logbookView: document.querySelector("#logbookView"),
+  entryDetailView: document.querySelector("#entryDetailView"),
   profileView: document.querySelector("#profileView"),
   diagnosticsView: document.querySelector("#diagnosticsView"),
   vehicleTitle: document.querySelector("#vehicleTitle"),
@@ -355,6 +358,14 @@ function init() {
   state.profiles = mergeProfiles(state.profiles, state.vehicles);
   state.diagnostics = normalizeDiagnostics(state.diagnostics, state.vehicles);
   selectedVehicle = getVehicleNames(state.vehicles).includes(selectedVehicle) ? selectedVehicle : getVehicleNames(state.vehicles)[0];
+  selectedEntryId = state.entries.some((entry) => entry.id === selectedEntryId) ? selectedEntryId : "";
+  const selectedEntry = state.entries.find((entry) => entry.id === selectedEntryId);
+  if (activeView === "entryDetail" && selectedEntry) {
+    selectedVehicle = selectedEntry.vehicle;
+  }
+  if (activeView === "entryDetail" && !selectedEntryId) {
+    activeView = "logbook";
+  }
   applyTheme(state.theme);
   renderStaticFormOptions();
   els.dateInput.value = today();
@@ -400,6 +411,7 @@ function init() {
     const button = event.target.closest(".vehicle-option[data-vehicle]");
     if (!button) return;
     selectedVehicle = button.dataset.vehicle;
+    selectedEntryId = "";
     activeFilter = "all";
     vehicleMenuOpen = false;
     addVehicleModalOpen = false;
@@ -438,6 +450,7 @@ function init() {
     const button = event.target.closest("[data-view]");
     if (!button) return;
     activeView = button.dataset.view;
+    selectedEntryId = "";
     state.activeView = activeView;
     saveState();
     render();
@@ -453,8 +466,14 @@ function init() {
   els.dashboardView.addEventListener("click", (event) => {
     const item = event.target.closest("[data-dashboard-item]");
     if (item) {
+      if (item.dataset.dashboardSource === "entry") {
+        openEntryDetail(item.dataset.dashboardItem);
+        return;
+      }
+
       selectedVehicle = item.dataset.dashboardVehicle;
-      activeView = item.dataset.dashboardSource === "diagnostic" ? "diagnostics" : "logbook";
+      selectedEntryId = "";
+      activeView = "diagnostics";
       activeFilter = item.dataset.dashboardCategory || "all";
       state.selectedVehicle = selectedVehicle;
       state.activeView = activeView;
@@ -466,6 +485,7 @@ function init() {
     const target = event.target.closest("[data-dashboard-vehicle]");
     if (!target) return;
     selectedVehicle = target.dataset.dashboardVehicle;
+    selectedEntryId = "";
     state.selectedVehicle = selectedVehicle;
     saveState();
     render();
@@ -498,10 +518,56 @@ function init() {
 
   els.entryList.addEventListener("click", (event) => {
     const button = event.target.closest("[data-delete]");
-    if (!button) return;
-    state.entries = state.entries.filter((entry) => entry.id !== button.dataset.delete);
-    saveState();
-    render();
+    if (button) {
+      deleteEntry(button.dataset.delete);
+      return;
+    }
+
+    const card = event.target.closest("[data-open-entry]");
+    if (!card) return;
+    openEntryDetail(card.dataset.openEntry);
+  });
+
+  els.entryList.addEventListener("keydown", (event) => {
+    if (!["Enter", " "].includes(event.key)) return;
+    if (event.target.closest("[data-delete]")) return;
+    const card = event.target.closest("[data-open-entry]");
+    if (!card) return;
+    event.preventDefault();
+    openEntryDetail(card.dataset.openEntry);
+  });
+
+  els.entryDetailView.addEventListener("click", (event) => {
+    const back = event.target.closest("[data-entry-back]");
+    if (back) {
+      closeEntryDetail();
+      return;
+    }
+
+    const deleteButton = event.target.closest("[data-delete-entry-detail]");
+    if (!deleteButton) return;
+    deleteEntry(deleteButton.dataset.deleteEntryDetail);
+  });
+
+  els.entryDetailView.addEventListener("change", (event) => {
+    if (!event.target.matches("select[name='category']")) return;
+    const form = event.target.form;
+    const category = event.target.value;
+    form.elements.statusSymbol.value = defaultSymbolForCategory(category);
+    if (category === "repairs") {
+      form.elements.status.value = "Open";
+      form.elements.priority.value = "High";
+      form.elements.flagged.checked = true;
+      return;
+    }
+    form.elements.status.value = "Logged";
+    form.elements.priority.value = "Medium";
+  });
+
+  els.entryDetailView.addEventListener("submit", (event) => {
+    if (!event.target.matches("#entryDetailForm")) return;
+    event.preventDefault();
+    saveEntryDetail(event.target);
   });
 
   els.profileView.addEventListener("submit", (event) => {
@@ -554,12 +620,13 @@ function loadState() {
       return {
         vehicles,
         selectedVehicle: selected,
+        selectedEntryId: typeof saved.selectedEntryId === "string" ? saved.selectedEntryId : "",
         entries: normalizeEntries(saved.entries.filter((entry) => vehicleNames.includes(entry.vehicle)), vehicles),
         profiles: mergeProfiles(saved.profiles, vehicles),
         diagnostics: normalizeDiagnostics(saved.diagnostics, vehicles),
         theme: saved.theme === "night" ? "night" : "day",
         costMode: costModes.some((mode) => mode.id === saved.costMode) ? saved.costMode : "logged",
-        activeView: workspaceViews.some((view) => view.id === saved.activeView) ? saved.activeView : "dashboard"
+        activeView: isKnownView(saved.activeView) ? saved.activeView : "dashboard"
       };
     }
   } catch {
@@ -569,6 +636,7 @@ function loadState() {
   return {
     vehicles: normalizeVehicles(),
     selectedVehicle: "Yukon",
+    selectedEntryId: "",
     entries: normalizeEntries(seedEntries),
     profiles: mergeProfiles(),
     diagnostics: normalizeDiagnostics(seedDiagnostics),
@@ -576,6 +644,10 @@ function loadState() {
     costMode: "logged",
     activeView: "dashboard"
   };
+}
+
+function isKnownView(view) {
+  return workspaceViews.some((item) => item.id === view) || view === "entryDetail";
 }
 
 function normalizeVehicles(savedVehicles) {
@@ -753,6 +825,7 @@ function defaultProfileFor(record) {
 function saveState() {
   state.activeView = activeView;
   state.selectedVehicle = selectedVehicle;
+  state.selectedEntryId = selectedEntryId;
   state.costMode = costMode;
   localStorage.setItem(storageKey, JSON.stringify(state));
 }
@@ -867,6 +940,76 @@ function addEntry() {
   render();
 }
 
+function openEntryDetail(entryId) {
+  const entry = getEntryById(entryId);
+  if (!entry) return;
+  selectedEntryId = entry.id;
+  selectedVehicle = entry.vehicle;
+  activeView = "entryDetail";
+  state.selectedEntryId = selectedEntryId;
+  state.selectedVehicle = selectedVehicle;
+  state.activeView = activeView;
+  saveState();
+  render();
+  scrollToWorkspaceTop();
+}
+
+function closeEntryDetail() {
+  selectedEntryId = "";
+  activeView = "logbook";
+  state.selectedEntryId = "";
+  state.activeView = activeView;
+  saveState();
+  render();
+  scrollToWorkspaceTop();
+}
+
+function deleteEntry(entryId) {
+  state.entries = state.entries.filter((entry) => entry.id !== entryId);
+  if (selectedEntryId === entryId) {
+    selectedEntryId = "";
+    activeView = "logbook";
+  }
+  saveState();
+  render();
+}
+
+function saveEntryDetail(form) {
+  const entryId = form.dataset.entryId;
+  const existing = getEntryById(entryId);
+  if (!existing) return;
+
+  const formData = new FormData(form);
+  const updated = normalizeEntry({
+    ...existing,
+    category: String(formData.get("category") || existing.category),
+    title: String(formData.get("title") || "").trim(),
+    cost: Number.parseFloat(formData.get("cost") || "0"),
+    date: String(formData.get("date") || today()),
+    status: String(formData.get("status") || defaultStatusForCategory(existing.category)),
+    statusSymbol: String(formData.get("statusSymbol") || defaultSymbolForCategory(existing.category)),
+    statusLabel: String(formData.get("statusLabel") || "").trim(),
+    priority: String(formData.get("priority") || "Medium"),
+    flagged: formData.get("flagged") === "on",
+    scheduledDate: String(formData.get("scheduledDate") || ""),
+    scheduledTime: String(formData.get("scheduledTime") || ""),
+    durationHours: String(formData.get("durationHours") || ""),
+    notes: String(formData.get("notes") || "").trim()
+  });
+
+  if (!updated.title) return;
+
+  state.entries = state.entries.map((entry) => (entry.id === entryId ? updated : entry));
+  selectedEntryId = updated.id;
+  selectedVehicle = updated.vehicle;
+  saveState();
+  render();
+}
+
+function scrollToWorkspaceTop() {
+  requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0 }));
+}
+
 function saveProfile(form) {
   const formData = new FormData(form);
   const current = getProfile(selectedVehicle);
@@ -965,6 +1108,7 @@ function render() {
   renderEntries(shownEntries);
   renderCosts(vehicleEntries, costSummary);
   renderNotes(vehicleEntries);
+  renderEntryDetail();
   renderProfile();
   renderDiagnostics();
   syncViews();
@@ -974,6 +1118,7 @@ function syncViews() {
   els.dashboardView.classList.toggle("is-hidden", activeView !== "dashboard");
   els.filterBar.classList.toggle("is-hidden", activeView !== "logbook");
   els.logbookView.classList.toggle("is-hidden", activeView !== "logbook");
+  els.entryDetailView.classList.toggle("is-hidden", activeView !== "entryDetail");
   els.profileView.classList.toggle("is-hidden", activeView !== "profile");
   els.diagnosticsView.classList.toggle("is-hidden", activeView !== "diagnostics");
 }
@@ -988,8 +1133,9 @@ function renderWorkspaceTabs() {
     .map((view) => {
       const count = view.id === "dashboard" ? attentionCount : view.id === "logbook" ? scheduledCount : view.id === "diagnostics" ? diagnosticsCount : 0;
       const suffix = count ? ` <span>${count}</span>` : "";
+      const isActive = view.id === activeView || (activeView === "entryDetail" && view.id === "logbook");
       return `
-        <button class="workspace-tab ${view.id === activeView ? "active" : ""}" type="button" data-view="${view.id}" aria-pressed="${view.id === activeView}">
+        <button class="workspace-tab ${isActive ? "active" : ""}" type="button" data-view="${view.id}" aria-pressed="${isActive}">
           ${icon(view.icon)}
           ${view.label}${suffix}
         </button>
@@ -1380,6 +1526,19 @@ function renderPriorityOptions(selected = "Medium") {
     .join("");
 }
 
+function renderCategoryOptions(selected = "maintenance") {
+  return categories
+    .filter((category) => category.id !== "all" && category.id !== "costs")
+    .map((category) => `<option value="${escapeAttr(category.id)}" ${category.id === selected ? "selected" : ""}>${escapeHtml(category.label)}</option>`)
+    .join("");
+}
+
+function renderEntryStatusOptions(selected = "Logged") {
+  return entryStatuses
+    .map((status) => `<option value="${escapeAttr(status)}" ${status === selected ? "selected" : ""}>${escapeHtml(status)}</option>`)
+    .join("");
+}
+
 function renderDiagnosticStatusOptions(selected = "Open") {
   return diagnosticStatuses
     .map((status) => `<option value="${escapeAttr(status)}" ${status === selected ? "selected" : ""}>${escapeHtml(status)}</option>`)
@@ -1613,6 +1772,178 @@ function renderVehicleOption(record) {
         <small>${costMode === "logged" ? `${entries.length} logs` : costDisplay.header}</small>
       </span>
     </button>
+  `;
+}
+
+function renderEntryDetail() {
+  const entry = getEntryById(selectedEntryId);
+
+  if (!entry) {
+    els.entryDetailView.innerHTML = `
+      <div class="entry-detail-empty">
+        <div class="empty-state">Choose an entry from the Logbook to open its full page.</div>
+        <button class="save-button" type="button" data-entry-back>${icon("arrowLeft")} Back to logbook</button>
+      </div>
+    `;
+    return;
+  }
+
+  const symbol = getStatusSymbol(entry.statusSymbol);
+  const diagnostics = state.diagnostics.filter((item) => item.linkedRepairId === entry.id);
+  const scheduleText = entry.scheduledDate ? formatSchedule(entry) : "No work time scheduled";
+
+  els.entryDetailView.innerHTML = `
+    <div class="entry-detail-shell">
+      <section class="entry-detail-hero ${entry.category}">
+        <div class="entry-detail-hero-main">
+          <button class="ghost-button entry-back-button" type="button" data-entry-back>
+            ${icon("arrowLeft")}
+            Back to logbook
+          </button>
+          <div>
+            <p class="label">${escapeHtml(selectedVehicle)} entry</p>
+            <h3>${escapeHtml(entry.title)}</h3>
+            <div class="status-row">
+              ${renderStatusBadge(entry)}
+              ${renderPriorityPill(entry)}
+              ${entry.flagged ? `<span class="flag-pill">${icon("flag")} Flagged</span>` : ""}
+            </div>
+          </div>
+        </div>
+
+        <div class="entry-detail-stat-strip">
+          <div>
+            <span>Cost</span>
+            <strong>${money(entry.cost)}</strong>
+          </div>
+          <div>
+            <span>Date logged</span>
+            <strong>${escapeHtml(formatDate(entry.date))}</strong>
+          </div>
+          <div>
+            <span>Schedule</span>
+            <strong>${escapeHtml(scheduleText)}</strong>
+          </div>
+        </div>
+      </section>
+
+      <div class="entry-detail-layout">
+        <form class="entry-detail-form" id="entryDetailForm" data-entry-id="${escapeAttr(entry.id)}">
+          <div class="form-title">
+            <h3>Edit entry</h3>
+            <span>${escapeHtml(getCategoryLabel(entry.category))}</span>
+          </div>
+
+          <label>
+            <span>Category</span>
+            <select name="category" required>
+              ${renderCategoryOptions(entry.category)}
+            </select>
+          </label>
+
+          <label>
+            <span>Status</span>
+            <select name="status">
+              ${renderEntryStatusOptions(entry.status || "Logged")}
+            </select>
+          </label>
+
+          <label class="field-wide">
+            <span>Title</span>
+            <input name="title" type="text" value="${escapeAttr(entry.title)}" required />
+          </label>
+
+          <label>
+            <span>Cost</span>
+            <input name="cost" type="number" min="0" step="0.01" value="${escapeAttr(Number(entry.cost || 0).toFixed(2))}" />
+          </label>
+
+          <label>
+            <span>Date</span>
+            <input name="date" type="date" value="${escapeAttr(entry.date || today())}" required />
+          </label>
+
+          <label>
+            <span>Status symbol</span>
+            <select name="statusSymbol">
+              ${renderStatusSymbolOptions(entry.statusSymbol || defaultSymbolForCategory(entry.category))}
+            </select>
+          </label>
+
+          <label>
+            <span>Priority</span>
+            <select name="priority">
+              ${renderPriorityOptions(entry.priority || "Medium")}
+            </select>
+          </label>
+
+          <label>
+            <span>Schedule date</span>
+            <input name="scheduledDate" type="date" value="${escapeAttr(entry.scheduledDate || "")}" />
+          </label>
+
+          <label>
+            <span>Time</span>
+            <input name="scheduledTime" type="time" value="${escapeAttr(entry.scheduledTime || "")}" />
+          </label>
+
+          <label>
+            <span>Est. hours</span>
+            <input name="durationHours" type="number" min="0" step="0.25" value="${escapeAttr(entry.durationHours || "")}" placeholder="1.5" />
+          </label>
+
+          <label>
+            <span>Status label</span>
+            <input name="statusLabel" type="text" value="${escapeAttr(entry.statusLabel || "")}" placeholder="Waiting on parts" />
+          </label>
+
+          <label class="check-field field-wide">
+            <input name="flagged" type="checkbox" ${entry.flagged ? "checked" : ""} />
+            <span>Flag this entry on the dashboard</span>
+          </label>
+
+          <label class="field-wide">
+            <span>Notes</span>
+            <textarea name="notes" rows="6" placeholder="Add details, part numbers, test results, reminders...">${escapeHtml(entry.notes || "")}</textarea>
+          </label>
+
+          <div class="entry-detail-actions field-wide">
+            <button class="save-button" type="submit">${icon("save")} Save changes</button>
+            <button class="danger-button" type="button" data-delete-entry-detail="${escapeAttr(entry.id)}">${icon("trash")} Delete entry</button>
+          </div>
+        </form>
+
+        <aside class="entry-detail-aside">
+          <div class="entry-summary-card">
+            <p class="label">Entry snapshot</p>
+            <div class="entry-summary-symbol" style="--status-color: ${symbol.color}">
+              <span>${icon(symbol.icon)}</span>
+              <strong>${escapeHtml(symbol.label)}</strong>
+            </div>
+            <div class="entry-summary-rows">
+              <div><span>Vehicle</span><strong>${escapeHtml(entry.vehicle)}</strong></div>
+              <div><span>Category</span><strong>${escapeHtml(getCategoryLabel(entry.category))}</strong></div>
+              <div><span>Priority</span><strong>${escapeHtml(entry.priority || "Medium")}</strong></div>
+              <div><span>Dashboard</span><strong>${entry.flagged ? "Flagged" : "Not flagged"}</strong></div>
+            </div>
+          </div>
+
+          <div class="entry-summary-card">
+            <p class="label">Linked diagnostics</p>
+            ${
+              diagnostics.length
+                ? diagnostics.map((diagnostic) => `
+                    <div class="linked-diagnostic">
+                      <strong>${escapeHtml(diagnostic.title)}</strong>
+                      <span>${escapeHtml(diagnostic.status || "Open")} / ${escapeHtml(diagnostic.system || "Diagnostic")}</span>
+                    </div>
+                  `).join("")
+                : `<div class="note-line">No diagnostic sessions are linked to this entry yet.</div>`
+            }
+          </div>
+        </aside>
+      </div>
+    </div>
   `;
 }
 
@@ -1987,7 +2318,7 @@ function renderEntries(entries) {
 
   els.entryList.innerHTML = entries
     .map((entry) => `
-      <article class="entry-card ${entry.category}">
+      <article class="entry-card ${entry.category}" role="button" tabindex="0" data-open-entry="${escapeAttr(entry.id)}" aria-label="Open ${escapeAttr(entry.title)} entry">
         <div class="entry-icon" aria-hidden="true">${icon(categoryIcon(entry.category))}</div>
         <div class="entry-main">
           <div class="entry-topline">
@@ -2157,6 +2488,10 @@ function getVehicleEntries(vehicle) {
     .sort((a, b) => b.date.localeCompare(a.date));
 }
 
+function getEntryById(entryId) {
+  return state.entries.find((entry) => entry.id === entryId);
+}
+
 function getDiagnostics(vehicle) {
   return state.diagnostics
     .filter((diagnostic) => diagnostic.vehicle === vehicle)
@@ -2257,6 +2592,7 @@ function escapeAttr(value) {
 function icon(name) {
   const icons = {
     activity: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h4l2-7 4 12 2-5h4"/></svg>',
+    arrowLeft: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>',
     atv: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15h16"/><path d="M7 15l2-5h6l2 5"/><path d="M8 10h8"/><path d="M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/><path d="M17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg>',
     boat: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15l2-7h12l2 7"/><path d="M3 15h18l-2 4H5l-2-4Z"/><path d="M9 8V5h6v3"/><path d="M6 21c1.2 0 1.2-1 2.4-1s1.2 1 2.4 1 1.2-1 2.4-1 1.2 1 2.4 1 1.2-1 2.4-1"/></svg>',
     box: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4-8 4-8-4Z"/><path d="M4 8v8l8 4 8-4V8"/><path d="M12 12v8"/><path d="M8 6l8 4"/></svg>',
