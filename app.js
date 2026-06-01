@@ -88,6 +88,7 @@ const typeThemes = {
 };
 
 const workspaceViews = [
+  { id: "dashboard", label: "Dashboard", icon: "dashboard" },
   { id: "logbook", label: "Logbook", icon: "list" },
   { id: "profile", label: "Vehicle Profile", icon: "profile" },
   { id: "diagnostics", label: "Diagnostics", icon: "activity" }
@@ -107,6 +108,30 @@ const costModes = [
   { id: "invested", label: "Invested", header: "Total invested" },
   { id: "value", label: "Value", header: "Sell value" }
 ];
+
+const statusSymbols = [
+  { id: "good", label: "Good", icon: "check", color: "#22c55e" },
+  { id: "attention", label: "Needs Attention", icon: "alert", color: "#f97316" },
+  { id: "urgent", label: "Urgent", icon: "warning", color: "#dc2626" },
+  { id: "dueSoon", label: "Due Soon", icon: "clock", color: "#eab308" },
+  { id: "repair", label: "Repair", icon: "wrench", color: "#f97316" },
+  { id: "electrical", label: "Electrical / Upgrade", icon: "bolt", color: "#f59e0b" },
+  { id: "cost", label: "Cost Watch", icon: "receipt", color: "#0f766e" },
+  { id: "waiting", label: "Waiting", icon: "hourglass", color: "#64748b" },
+  { id: "parts", label: "Parts Ordered", icon: "box", color: "#2563eb" },
+  { id: "testing", label: "Testing / Diagnosis", icon: "activity", color: "#7c3aed" },
+  { id: "note", label: "Note", icon: "note", color: "#6b7280" },
+  { id: "done", label: "Done", icon: "check", color: "#16a34a" }
+];
+
+const priorityLevels = [
+  { id: "Low", label: "Low", weight: 1 },
+  { id: "Medium", label: "Medium", weight: 2 },
+  { id: "High", label: "High", weight: 3 },
+  { id: "Urgent", label: "Urgent", weight: 4 }
+];
+
+const diagnosticStatuses = ["Open", "Watching", "Waiting on parts", "Scheduled", "Done"];
 
 const storageKey = "geeky-garage-state-v1";
 
@@ -256,6 +281,13 @@ const seedDiagnostics = [
     testsTried: "Confirmed dash response when scanner was connected. Next useful steps: battery voltage, grounds, DLC power/ground, and cluster power feeds.",
     createdAt: "2026-05-30",
     status: "Open",
+    statusSymbol: "attention",
+    statusLabel: "Electrical issue open",
+    priority: "High",
+    flagged: true,
+    scheduledDate: "",
+    scheduledTime: "",
+    durationHours: "1.5",
     resources: [
       {
         label: "Saved search: 2007 GMC Yukon instrument cluster ground DLC",
@@ -268,7 +300,7 @@ const seedDiagnostics = [
 let state = loadState();
 let selectedVehicle = state.selectedVehicle || getVehicleNames(state.vehicles)[0] || "Yukon";
 let activeFilter = "all";
-let activeView = workspaceViews.some((view) => view.id === state.activeView) ? state.activeView : "logbook";
+let activeView = workspaceViews.some((view) => view.id === state.activeView) ? state.activeView : "dashboard";
 let costMode = costModes.some((mode) => mode.id === state.costMode) ? state.costMode : "logged";
 let vehicleMenuOpen = false;
 let addVehicleModalOpen = false;
@@ -276,6 +308,7 @@ let addVehicleModalOpen = false;
 const els = {
   vehicleNav: document.querySelector("#vehicleNav"),
   workspaceTabs: document.querySelector("#workspaceTabs"),
+  dashboardView: document.querySelector("#dashboardView"),
   filterBar: document.querySelector("#filterBar"),
   garageSummary: document.querySelector("#garageSummary"),
   logbookView: document.querySelector("#logbookView"),
@@ -291,6 +324,13 @@ const els = {
   titleInput: document.querySelector("#titleInput"),
   costInput: document.querySelector("#costInput"),
   dateInput: document.querySelector("#dateInput"),
+  statusSymbolInput: document.querySelector("#statusSymbolInput"),
+  priorityInput: document.querySelector("#priorityInput"),
+  scheduleDateInput: document.querySelector("#scheduleDateInput"),
+  scheduleTimeInput: document.querySelector("#scheduleTimeInput"),
+  durationInput: document.querySelector("#durationInput"),
+  statusLabelInput: document.querySelector("#statusLabelInput"),
+  flaggedInput: document.querySelector("#flaggedInput"),
   notesInput: document.querySelector("#notesInput"),
   logTitle: document.querySelector("#logTitle"),
   visibleCount: document.querySelector("#visibleCount"),
@@ -311,10 +351,12 @@ init();
 function init() {
   state.theme = state.theme === "night" ? "night" : "day";
   state.vehicles = normalizeVehicles(state.vehicles);
+  state.entries = normalizeEntries(state.entries, state.vehicles);
   state.profiles = mergeProfiles(state.profiles, state.vehicles);
   state.diagnostics = normalizeDiagnostics(state.diagnostics, state.vehicles);
   selectedVehicle = getVehicleNames(state.vehicles).includes(selectedVehicle) ? selectedVehicle : getVehicleNames(state.vehicles)[0];
   applyTheme(state.theme);
+  renderStaticFormOptions();
   els.dateInput.value = today();
   render();
 
@@ -408,6 +450,38 @@ function init() {
     render();
   });
 
+  els.dashboardView.addEventListener("click", (event) => {
+    const item = event.target.closest("[data-dashboard-item]");
+    if (item) {
+      selectedVehicle = item.dataset.dashboardVehicle;
+      activeView = item.dataset.dashboardSource === "diagnostic" ? "diagnostics" : "logbook";
+      activeFilter = item.dataset.dashboardCategory || "all";
+      state.selectedVehicle = selectedVehicle;
+      state.activeView = activeView;
+      saveState();
+      render();
+      return;
+    }
+
+    const target = event.target.closest("[data-dashboard-vehicle]");
+    if (!target) return;
+    selectedVehicle = target.dataset.dashboardVehicle;
+    state.selectedVehicle = selectedVehicle;
+    saveState();
+    render();
+  });
+
+  els.categoryInput.addEventListener("change", () => {
+    els.statusSymbolInput.value = defaultSymbolForCategory(els.categoryInput.value);
+    if (els.categoryInput.value === "repairs") {
+      els.priorityInput.value = "High";
+      els.flaggedInput.checked = true;
+      return;
+    }
+    els.priorityInput.value = "Medium";
+    els.flaggedInput.checked = false;
+  });
+
   els.costModeToggle.addEventListener("click", (event) => {
     const button = event.target.closest("[data-cost-mode]");
     if (!button) return;
@@ -459,7 +533,7 @@ function init() {
     if (!button) return;
     state.diagnostics = state.diagnostics.filter((item) => item.id !== button.dataset.deleteDiagnostic);
     saveState();
-    renderDiagnostics();
+    render();
   });
 
   els.themeToggle.addEventListener("click", () => {
@@ -480,12 +554,12 @@ function loadState() {
       return {
         vehicles,
         selectedVehicle: selected,
-        entries: saved.entries.filter((entry) => vehicleNames.includes(entry.vehicle)),
+        entries: normalizeEntries(saved.entries.filter((entry) => vehicleNames.includes(entry.vehicle)), vehicles),
         profiles: mergeProfiles(saved.profiles, vehicles),
         diagnostics: normalizeDiagnostics(saved.diagnostics, vehicles),
         theme: saved.theme === "night" ? "night" : "day",
         costMode: costModes.some((mode) => mode.id === saved.costMode) ? saved.costMode : "logged",
-        activeView: workspaceViews.some((view) => view.id === saved.activeView) ? saved.activeView : "logbook"
+        activeView: workspaceViews.some((view) => view.id === saved.activeView) ? saved.activeView : "dashboard"
       };
     }
   } catch {
@@ -495,12 +569,12 @@ function loadState() {
   return {
     vehicles: normalizeVehicles(),
     selectedVehicle: "Yukon",
-    entries: seedEntries,
+    entries: normalizeEntries(seedEntries),
     profiles: mergeProfiles(),
     diagnostics: normalizeDiagnostics(seedDiagnostics),
     theme: "day",
     costMode: "logged",
-    activeView: "logbook"
+    activeView: "dashboard"
   };
 }
 
@@ -547,10 +621,52 @@ function mergeProfiles(savedProfiles = {}, vehicleRecords = defaultVehicles) {
   }, {});
 }
 
+function normalizeEntries(savedEntries, vehicleRecords = defaultVehicles) {
+  const vehicleNames = getVehicleNames(normalizeVehicles(vehicleRecords));
+  const entries = Array.isArray(savedEntries) ? savedEntries : seedEntries;
+  return entries
+    .filter((entry) => vehicleNames.includes(entry.vehicle))
+    .map((entry) => normalizeEntry(entry));
+}
+
+function normalizeEntry(entry) {
+  const category = entry.category || "notes";
+  const isRepair = category === "repairs";
+
+  return {
+    ...entry,
+    category,
+    status: entry.status || (isRepair ? "Open" : "Logged"),
+    statusSymbol: statusSymbols.some((symbol) => symbol.id === entry.statusSymbol) ? entry.statusSymbol : defaultSymbolForCategory(category),
+    statusLabel: entry.statusLabel || (isRepair ? "Repair open" : ""),
+    priority: priorityLevels.some((priority) => priority.id === entry.priority) ? entry.priority : isRepair ? "High" : "Medium",
+    flagged: typeof entry.flagged === "boolean" ? entry.flagged : isRepair,
+    scheduledDate: entry.scheduledDate || "",
+    scheduledTime: entry.scheduledTime || "",
+    durationHours: entry.durationHours || ""
+  };
+}
+
 function normalizeDiagnostics(savedDiagnostics, vehicleRecords = defaultVehicles) {
   const diagnostics = Array.isArray(savedDiagnostics) ? savedDiagnostics : seedDiagnostics;
   const vehicleNames = getVehicleNames(normalizeVehicles(vehicleRecords));
-  return diagnostics.filter((item) => vehicleNames.includes(item.vehicle));
+  return diagnostics
+    .filter((item) => vehicleNames.includes(item.vehicle))
+    .map((item) => normalizeDiagnostic(item));
+}
+
+function normalizeDiagnostic(item) {
+  return {
+    ...item,
+    status: item.status || "Open",
+    statusSymbol: statusSymbols.some((symbol) => symbol.id === item.statusSymbol) ? item.statusSymbol : "testing",
+    statusLabel: item.statusLabel || item.status || "Diagnostic open",
+    priority: priorityLevels.some((priority) => priority.id === item.priority) ? item.priority : item.status === "Done" ? "Low" : "High",
+    flagged: typeof item.flagged === "boolean" ? item.flagged : item.status !== "Done",
+    scheduledDate: item.scheduledDate || "",
+    scheduledTime: item.scheduledTime || "",
+    durationHours: item.durationHours || ""
+  };
 }
 
 function defaultProfileFor(record) {
@@ -641,6 +757,13 @@ function saveState() {
   localStorage.setItem(storageKey, JSON.stringify(state));
 }
 
+function renderStaticFormOptions() {
+  els.statusSymbolInput.innerHTML = renderStatusSymbolOptions("repair");
+  els.priorityInput.innerHTML = renderPriorityOptions("Medium");
+  els.statusSymbolInput.value = defaultSymbolForCategory(els.categoryInput.value);
+  els.priorityInput.value = "Medium";
+}
+
 async function addVehicle(form) {
   const formData = new FormData(form);
   const requestedName = String(formData.get("vehicleName") || "").trim();
@@ -710,23 +833,36 @@ function readImageFile(file) {
 function addEntry() {
   const title = els.titleInput.value.trim();
   if (!title) return;
+  const category = els.categoryInput.value;
+  const scheduledDate = els.scheduleDateInput.value || "";
 
   const entry = {
     id: `entry-${Date.now()}`,
     vehicle: selectedVehicle,
-    category: els.categoryInput.value,
+    category,
     title,
     cost: Number.parseFloat(els.costInput.value || "0"),
     date: els.dateInput.value || today(),
+    status: scheduledDate ? "Scheduled" : defaultStatusForCategory(category),
+    statusSymbol: els.statusSymbolInput.value || defaultSymbolForCategory(category),
+    statusLabel: els.statusLabelInput.value.trim(),
+    priority: els.priorityInput.value || "Medium",
+    flagged: els.flaggedInput.checked,
+    scheduledDate,
+    scheduledTime: els.scheduleTimeInput.value || "",
+    durationHours: els.durationInput.value || "",
     notes: els.notesInput.value.trim()
   };
 
-  state.entries = [entry, ...state.entries];
+  state.entries = [normalizeEntry(entry), ...state.entries];
   saveState();
 
   els.entryForm.reset();
   els.dateInput.value = today();
   els.categoryInput.value = entry.category;
+  els.statusSymbolInput.value = defaultSymbolForCategory(entry.category);
+  els.priorityInput.value = entry.category === "repairs" ? "High" : "Medium";
+  els.flaggedInput.checked = entry.category === "repairs";
   els.titleInput.focus();
   render();
 }
@@ -766,13 +902,20 @@ function addDiagnostic(form) {
     vehicle: selectedVehicle,
     linkedRepairId,
     title,
+    status: String(formData.get("status") || "Open"),
+    statusSymbol: String(formData.get("statusSymbol") || "testing"),
+    statusLabel: String(formData.get("statusLabel") || "").trim(),
+    priority: String(formData.get("priority") || "High"),
+    flagged: formData.get("flagged") === "on",
+    scheduledDate: String(formData.get("scheduledDate") || ""),
+    scheduledTime: String(formData.get("scheduledTime") || ""),
+    durationHours: String(formData.get("durationHours") || ""),
     system: String(formData.get("system") || "").trim(),
     mileage: String(formData.get("mileage") || "").trim(),
     codes: String(formData.get("codes") || "").trim(),
     symptoms: String(formData.get("symptoms") || "").trim(),
     testsTried: String(formData.get("testsTried") || "").trim(),
     createdAt: today(),
-    status: "Open",
     resources: resourceUrl
       ? [
           {
@@ -783,10 +926,10 @@ function addDiagnostic(form) {
       : []
   };
 
-  state.diagnostics = [diagnostic, ...state.diagnostics];
+  state.diagnostics = [normalizeDiagnostic(diagnostic), ...state.diagnostics];
   saveState();
   form.reset();
-  renderDiagnostics();
+  render();
 }
 
 function applyTheme(theme) {
@@ -817,6 +960,7 @@ function render() {
 
   renderVehicles();
   renderWorkspaceTabs();
+  renderDashboard();
   renderFilters();
   renderEntries(shownEntries);
   renderCosts(vehicleEntries, costSummary);
@@ -827,6 +971,7 @@ function render() {
 }
 
 function syncViews() {
+  els.dashboardView.classList.toggle("is-hidden", activeView !== "dashboard");
   els.filterBar.classList.toggle("is-hidden", activeView !== "logbook");
   els.logbookView.classList.toggle("is-hidden", activeView !== "logbook");
   els.profileView.classList.toggle("is-hidden", activeView !== "profile");
@@ -835,9 +980,14 @@ function syncViews() {
 
 function renderWorkspaceTabs() {
   const diagnosticsCount = getDiagnostics(selectedVehicle).length;
+  const dashboardItems = getDashboardItems();
+  const attentionCount = dashboardItems.filter((item) => needsAttention(item)).length;
+  const scheduledCount = dashboardItems.filter((item) => item.scheduledDate && !isDoneItem(item)).length;
+
   els.workspaceTabs.innerHTML = workspaceViews
     .map((view) => {
-      const suffix = view.id === "diagnostics" && diagnosticsCount ? ` <span>${diagnosticsCount}</span>` : "";
+      const count = view.id === "dashboard" ? attentionCount : view.id === "logbook" ? scheduledCount : view.id === "diagnostics" ? diagnosticsCount : 0;
+      const suffix = count ? ` <span>${count}</span>` : "";
       return `
         <button class="workspace-tab ${view.id === activeView ? "active" : ""}" type="button" data-view="${view.id}" aria-pressed="${view.id === activeView}">
           ${icon(view.icon)}
@@ -846,6 +996,453 @@ function renderWorkspaceTabs() {
       `;
     })
     .join("");
+}
+
+function renderDashboard() {
+  const data = getDashboardData();
+  const attentionItems = data.attentionItems.slice(0, 6);
+  const scheduleGroups = getScheduleGroups(data.activeItems);
+
+  els.dashboardView.innerHTML = `
+    <div class="feature-heading dashboard-heading">
+      <div>
+        <p class="label">Garage dashboard</p>
+        <h3>Totals, attention, and scheduled work</h3>
+      </div>
+      <span>${data.activeItems.length} active ${data.activeItems.length === 1 ? "item" : "items"}</span>
+    </div>
+
+    <section class="dashboard-stat-grid" aria-label="Garage totals">
+      ${renderDashboardStat("Total invested", money(data.totals.totalInvested), "Price paid + logged work", "receipt")}
+      ${renderDashboardStat("Logged spend", money(data.totals.loggedTotal), `${state.entries.length} saved ${state.entries.length === 1 ? "entry" : "entries"}`, "list")}
+      ${renderDashboardStat("Sell value", money(data.totals.sellValue), data.totals.sellValue ? "Across all profiles" : "Add values in profiles", "tag")}
+      ${renderDashboardStat("Attention", String(data.attentionItems.length), "Flagged, urgent, or due soon", "alert", data.attentionItems.length ? "warning" : "good")}
+      ${renderDashboardStat("Scheduled", String(data.scheduledItems.length), "Work with dates set", "calendar")}
+    </section>
+
+    <div class="dashboard-layout">
+      <section class="dashboard-panel vehicle-dashboard-panel" aria-label="Vehicle status">
+        <div class="panel-heading">
+          <div>
+            <p class="label">Vehicle status</p>
+            <h4>All toys at a glance</h4>
+          </div>
+          <span>${state.vehicles.length} tracked</span>
+        </div>
+        <div class="vehicle-status-grid">
+          ${data.vehicleSummaries.map(renderVehicleStatusCard).join("")}
+        </div>
+      </section>
+
+      <section class="dashboard-panel attention-panel" aria-label="Attention needed">
+        <div class="panel-heading">
+          <div>
+            <p class="label">Attention needed</p>
+            <h4>Fix first</h4>
+          </div>
+          <span>${data.attentionItems.length}</span>
+        </div>
+        <div class="dashboard-list">
+          ${attentionItems.length ? attentionItems.map((item) => renderDashboardItem(item, "attention")).join("") : `<div class="empty-state compact-dashboard">Nothing is flagged right now.</div>`}
+        </div>
+      </section>
+    </div>
+
+    <div class="dashboard-layout lower">
+      <section class="dashboard-panel schedule-panel" aria-label="Work schedule">
+        <div class="panel-heading">
+          <div>
+            <p class="label">Schedule</p>
+            <h4>Planned garage time</h4>
+          </div>
+          <span>${data.scheduledItems.length} dated</span>
+        </div>
+        <div class="schedule-stack">
+          ${
+            scheduleGroups.some((group) => group.items.length)
+              ? scheduleGroups.map(renderScheduleGroup).join("")
+              : `<div class="empty-state compact-dashboard">No work is scheduled yet. Add a date from Logbook or Diagnostics.</div>`
+          }
+        </div>
+      </section>
+
+      <section class="dashboard-panel symbol-panel" aria-label="Status symbol options">
+        <div class="panel-heading">
+          <div>
+            <p class="label">Symbol picker</p>
+            <h4>Reusable flags</h4>
+          </div>
+          <span>${statusSymbols.length} options</span>
+        </div>
+        <div class="symbol-grid">
+          ${statusSymbols.map(renderSymbolOption).join("")}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function getDashboardData() {
+  const items = getDashboardItems();
+  const activeItems = items.filter((item) => isActiveItem(item));
+  const attentionItems = activeItems.filter((item) => needsAttention(item)).sort(compareDashboardItems);
+  const scheduledItems = activeItems.filter((item) => item.scheduledDate && !isDoneItem(item)).sort(compareSchedule);
+  const vehicleSummaries = getVehicleDashboardSummaries(items);
+
+  const totals = vehicleSummaries.reduce(
+    (total, vehicle) => {
+      total.loggedTotal += vehicle.summary.loggedTotal;
+      total.pricePaid += vehicle.summary.pricePaid;
+      total.sellValue += vehicle.summary.sellValue;
+      total.totalInvested += vehicle.summary.totalInvested;
+      return total;
+    },
+    { loggedTotal: 0, pricePaid: 0, sellValue: 0, totalInvested: 0 }
+  );
+
+  return {
+    items,
+    activeItems,
+    attentionItems,
+    scheduledItems,
+    vehicleSummaries,
+    totals
+  };
+}
+
+function renderDashboardStat(label, value, meta, iconName, tone = "") {
+  return `
+    <article class="dashboard-stat ${tone}">
+      <span class="dashboard-stat-icon" aria-hidden="true">${icon(iconName)}</span>
+      <div>
+        <p>${escapeHtml(label)}</p>
+        <strong>${escapeHtml(value)}</strong>
+        <small>${escapeHtml(meta)}</small>
+      </div>
+    </article>
+  `;
+}
+
+function renderVehicleStatusCard(vehicle) {
+  const status = vehicle.status;
+  const nextLabel = vehicle.nextItem ? formatSchedule(vehicle.nextItem) : "No date set";
+
+  return `
+    <button class="vehicle-status-card ${vehicle.record.name === selectedVehicle ? "active" : ""}" type="button" data-dashboard-vehicle="${escapeAttr(vehicle.record.name)}" style="${vehicleThemeStyle(vehicle.record.name)}">
+      <span class="vehicle-status-main">
+        <span class="vehicle-status-symbol" style="--status-color: ${status.color}">${icon(status.icon)}</span>
+        <span>
+          <strong>${escapeHtml(vehicle.record.name)}</strong>
+          <small>${escapeHtml(vehicle.record.type || "Vehicle")}</small>
+        </span>
+      </span>
+      <span class="vehicle-status-label">${escapeHtml(status.label)}</span>
+      <span class="vehicle-status-money">${money(vehicle.summary.totalInvested)}</span>
+      <span class="vehicle-status-meta">
+        ${vehicle.attentionCount} attention / ${vehicle.scheduledCount} scheduled
+      </span>
+      <span class="vehicle-status-next">${escapeHtml(nextLabel)}</span>
+    </button>
+  `;
+}
+
+function renderDashboardItem(item, mode = "default") {
+  return `
+    <button class="dashboard-item ${mode} ${item.flagged ? "flagged" : ""}" type="button" data-dashboard-item="${escapeAttr(item.id)}" data-dashboard-source="${escapeAttr(item.source)}" data-dashboard-vehicle="${escapeAttr(item.vehicle)}" data-dashboard-category="${escapeAttr(item.category || "all")}">
+      <span class="dashboard-item-icon" style="--status-color: ${getStatusSymbol(item.statusSymbol).color}" aria-hidden="true">
+        ${icon(getStatusSymbol(item.statusSymbol).icon)}
+      </span>
+      <span class="dashboard-item-main">
+        <span class="dashboard-item-title">${escapeHtml(item.title)}</span>
+        <span class="dashboard-item-meta">${escapeHtml(item.vehicle)} / ${escapeHtml(item.typeLabel)}</span>
+        ${renderScheduleMeta(item)}
+      </span>
+      <span class="dashboard-item-side">
+        ${renderPriorityPill(item)}
+        ${item.flagged ? `<span class="flag-pill">${icon("flag")} Flagged</span>` : ""}
+      </span>
+    </button>
+  `;
+}
+
+function renderScheduleGroup(group) {
+  if (!group.items.length) return "";
+
+  return `
+    <section class="schedule-group ${group.id}">
+      <div class="schedule-group-head">
+        <span>${escapeHtml(group.label)}</span>
+        <strong>${group.items.length}</strong>
+      </div>
+      <div class="dashboard-list">
+        ${group.items.slice(0, 6).map((item) => renderDashboardItem(item, "schedule")).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderSymbolOption(symbol) {
+  return `
+    <div class="symbol-option" style="--status-color: ${symbol.color}">
+      <span aria-hidden="true">${icon(symbol.icon)}</span>
+      <strong>${escapeHtml(symbol.label)}</strong>
+    </div>
+  `;
+}
+
+function getDashboardItems() {
+  const entryItems = state.entries.map((entry) => ({
+    id: entry.id,
+    source: "entry",
+    sourceLabel: "Logbook",
+    vehicle: entry.vehicle,
+    category: entry.category,
+    typeLabel: getCategoryLabel(entry.category),
+    title: entry.title,
+    status: entry.status || "Logged",
+    statusSymbol: entry.statusSymbol || defaultSymbolForCategory(entry.category),
+    statusLabel: entry.statusLabel || "",
+    priority: entry.priority || "Medium",
+    flagged: Boolean(entry.flagged),
+    scheduledDate: entry.scheduledDate || "",
+    scheduledTime: entry.scheduledTime || "",
+    durationHours: entry.durationHours || "",
+    createdDate: entry.date || "",
+    notes: entry.notes || ""
+  }));
+
+  const diagnosticItems = state.diagnostics.map((item) => ({
+    id: item.id,
+    source: "diagnostic",
+    sourceLabel: "Diagnostics",
+    vehicle: item.vehicle,
+    category: "repairs",
+    typeLabel: item.system || "Diagnostic",
+    title: item.title,
+    status: item.status || "Open",
+    statusSymbol: item.statusSymbol || "testing",
+    statusLabel: item.statusLabel || item.status || "",
+    priority: item.priority || "High",
+    flagged: Boolean(item.flagged),
+    scheduledDate: item.scheduledDate || "",
+    scheduledTime: item.scheduledTime || "",
+    durationHours: item.durationHours || "",
+    createdDate: item.createdAt || "",
+    notes: item.symptoms || item.testsTried || ""
+  }));
+
+  return [...entryItems, ...diagnosticItems];
+}
+
+function getVehicleDashboardSummaries(items) {
+  return state.vehicles.map((record) => {
+    const vehicleItems = items.filter((item) => item.vehicle === record.name);
+    const activeItems = vehicleItems.filter((item) => isActiveItem(item));
+    const attentionItems = activeItems.filter((item) => needsAttention(item));
+    const scheduledItems = activeItems.filter((item) => item.scheduledDate && !isDoneItem(item)).sort(compareSchedule);
+
+    return {
+      record,
+      summary: getCostSummary(getVehicleEntries(record.name), getProfile(record.name)),
+      attentionCount: attentionItems.length,
+      scheduledCount: scheduledItems.length,
+      nextItem: scheduledItems[0],
+      status: getVehicleStatus(activeItems)
+    };
+  });
+}
+
+function getVehicleStatus(items) {
+  if (items.some((item) => isOverdue(item) || getStatusSymbol(item.statusSymbol).id === "urgent" || priorityWeight(item.priority) >= 4)) {
+    return getStatusSymbol("urgent");
+  }
+
+  if (items.some((item) => needsAttention(item))) {
+    return getStatusSymbol("attention");
+  }
+
+  if (items.some((item) => item.scheduledDate && scheduleDaysUntil(item.scheduledDate) <= 7)) {
+    return getStatusSymbol("dueSoon");
+  }
+
+  return getStatusSymbol("good");
+}
+
+function getScheduleGroups(items) {
+  const groups = [
+    { id: "overdue", label: "Overdue", items: [] },
+    { id: "today", label: "Today", items: [] },
+    { id: "week", label: "Next 7 days", items: [] },
+    { id: "upcoming", label: "Upcoming", items: [] },
+    { id: "unscheduled", label: "Flagged, no date", items: [] }
+  ];
+  const byId = Object.fromEntries(groups.map((group) => [group.id, group]));
+
+  items.forEach((item) => {
+    if (isDoneItem(item)) return;
+    const bucket = scheduleBucketFor(item);
+    if (bucket === "unscheduled" && !needsAttention(item)) return;
+    byId[bucket].items.push(item);
+  });
+
+  groups.forEach((group) => group.items.sort(compareSchedule));
+  return groups;
+}
+
+function scheduleBucketFor(item) {
+  if (!item.scheduledDate) return "unscheduled";
+  const days = scheduleDaysUntil(item.scheduledDate);
+  if (days < 0) return "overdue";
+  if (days === 0) return "today";
+  if (days <= 7) return "week";
+  return "upcoming";
+}
+
+function compareDashboardItems(a, b) {
+  const attentionDiff = Number(needsAttention(b)) - Number(needsAttention(a));
+  if (attentionDiff) return attentionDiff;
+  const priorityDiff = priorityWeight(b.priority) - priorityWeight(a.priority);
+  if (priorityDiff) return priorityDiff;
+  return compareSchedule(a, b);
+}
+
+function compareSchedule(a, b) {
+  const aDate = itemPrimaryDate(a);
+  const bDate = itemPrimaryDate(b);
+  if (aDate && bDate && aDate !== bDate) return aDate.localeCompare(bDate);
+  if (aDate && !bDate) return -1;
+  if (!aDate && bDate) return 1;
+  const timeCompare = String(a.scheduledTime || "").localeCompare(String(b.scheduledTime || ""));
+  if (timeCompare) return timeCompare;
+  return priorityWeight(b.priority) - priorityWeight(a.priority);
+}
+
+function itemPrimaryDate(item) {
+  return item.scheduledDate || item.createdDate || "";
+}
+
+function isDoneItem(item) {
+  return String(item.status || "").toLowerCase() === "done" || item.statusSymbol === "done";
+}
+
+function isActiveItem(item) {
+  if (isDoneItem(item)) return false;
+  if (item.flagged || item.scheduledDate || priorityWeight(item.priority) >= 3) return true;
+  if (item.source === "diagnostic") return true;
+  const status = String(item.status || "").toLowerCase();
+  return ["open", "watching", "waiting on parts", "scheduled"].includes(status);
+}
+
+function needsAttention(item) {
+  if (!isActiveItem(item)) return false;
+  const symbol = getStatusSymbol(item.statusSymbol).id;
+  const dueSoon = item.scheduledDate && scheduleDaysUntil(item.scheduledDate) <= 7;
+  const status = String(item.status || "").toLowerCase();
+  return (
+    item.flagged ||
+    priorityWeight(item.priority) >= 3 ||
+    isOverdue(item) ||
+    dueSoon ||
+    ["attention", "urgent", "waiting", "parts", "testing"].includes(symbol) ||
+    ["open", "watching", "waiting on parts"].includes(status)
+  );
+}
+
+function isOverdue(item) {
+  return Boolean(item.scheduledDate && scheduleDaysUntil(item.scheduledDate) < 0 && !isDoneItem(item));
+}
+
+function scheduleDaysUntil(date) {
+  if (!date) return Number.POSITIVE_INFINITY;
+  const start = new Date(`${today()}T12:00:00`);
+  const target = new Date(`${date}T12:00:00`);
+  if (Number.isNaN(target.getTime())) return Number.POSITIVE_INFINITY;
+  return Math.round((target.getTime() - start.getTime()) / 86400000);
+}
+
+function priorityWeight(priority) {
+  return priorityLevels.find((item) => item.id === priority)?.weight || 0;
+}
+
+function getStatusSymbol(id) {
+  return statusSymbols.find((symbol) => symbol.id === id) || statusSymbols[1];
+}
+
+function renderStatusSymbolOptions(selected = "attention") {
+  return statusSymbols
+    .map((symbol) => `<option value="${escapeAttr(symbol.id)}" ${symbol.id === selected ? "selected" : ""}>${escapeHtml(symbol.label)}</option>`)
+    .join("");
+}
+
+function renderPriorityOptions(selected = "Medium") {
+  return priorityLevels
+    .map((priority) => `<option value="${escapeAttr(priority.id)}" ${priority.id === selected ? "selected" : ""}>${escapeHtml(priority.label)}</option>`)
+    .join("");
+}
+
+function renderDiagnosticStatusOptions(selected = "Open") {
+  return diagnosticStatuses
+    .map((status) => `<option value="${escapeAttr(status)}" ${status === selected ? "selected" : ""}>${escapeHtml(status)}</option>`)
+    .join("");
+}
+
+function renderStatusBadge(item, compact = false) {
+  const symbol = getStatusSymbol(item.statusSymbol);
+  const label = item.statusLabel || item.status || symbol.label;
+
+  return `
+    <span class="status-badge ${compact ? "compact" : ""}" style="--status-color: ${symbol.color}">
+      ${icon(symbol.icon)}
+      ${escapeHtml(label)}
+    </span>
+  `;
+}
+
+function renderPriorityPill(item) {
+  const priority = priorityLevels.some((level) => level.id === item.priority) ? item.priority : "Medium";
+  return `<span class="priority-pill ${slugify(priority)}">${escapeHtml(priority)}</span>`;
+}
+
+function renderScheduleMeta(item) {
+  if (!item.scheduledDate) return "";
+  const statusClass = isOverdue(item) ? "overdue" : scheduleDaysUntil(item.scheduledDate) <= 7 ? "soon" : "";
+  return `
+    <span class="schedule-meta ${statusClass}">
+      ${icon("calendar")}
+      ${escapeHtml(formatSchedule(item))}
+    </span>
+  `;
+}
+
+function formatSchedule(item) {
+  if (!item.scheduledDate) return "No date set";
+  const pieces = [formatDate(item.scheduledDate)];
+  if (item.scheduledTime) pieces.push(formatTime(item.scheduledTime));
+  if (item.durationHours) pieces.push(`${item.durationHours} hr`);
+  return pieces.join(" / ");
+}
+
+function formatTime(time) {
+  const [hours, minutes] = String(time || "").split(":").map((part) => Number.parseInt(part, 10));
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return time;
+  const parsed = new Date();
+  parsed.setHours(hours, minutes, 0, 0);
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit"
+  }).format(parsed);
+}
+
+function defaultSymbolForCategory(category) {
+  if (category === "repairs") return "attention";
+  if (category === "upgrades") return "electrical";
+  if (category === "notes") return "note";
+  if (category === "costs") return "cost";
+  return "repair";
+}
+
+function defaultStatusForCategory(category) {
+  return category === "repairs" ? "Open" : "Logged";
 }
 
 function getCostDisplay(summary, vehicle = selectedVehicle) {
@@ -1116,6 +1713,52 @@ function renderDiagnostics() {
             <input name="codes" type="text" value="${escapeAttr(profile.obdCodes || "")}" placeholder="P0300, U0100, C0561" />
           </label>
 
+          <label>
+            <span>Status</span>
+            <select name="status">
+              ${renderDiagnosticStatusOptions("Open")}
+            </select>
+          </label>
+
+          <label>
+            <span>Status symbol</span>
+            <select name="statusSymbol">
+              ${renderStatusSymbolOptions("testing")}
+            </select>
+          </label>
+
+          <label>
+            <span>Priority</span>
+            <select name="priority">
+              ${renderPriorityOptions("High")}
+            </select>
+          </label>
+
+          <label>
+            <span>Schedule date</span>
+            <input name="scheduledDate" type="date" />
+          </label>
+
+          <label>
+            <span>Time</span>
+            <input name="scheduledTime" type="time" />
+          </label>
+
+          <label>
+            <span>Est. hours</span>
+            <input name="durationHours" type="number" min="0" step="0.25" placeholder="1.5" />
+          </label>
+
+          <label class="field-wide">
+            <span>Status label</span>
+            <input name="statusLabel" type="text" placeholder="Waiting on parts" />
+          </label>
+
+          <label class="check-field field-wide">
+            <input name="flagged" type="checkbox" checked />
+            <span>Flag this issue on the dashboard</span>
+          </label>
+
           <label class="field-wide">
             <span>Symptoms</span>
             <textarea name="symptoms" rows="3" placeholder="What is it doing, when does it happen, what changed?"></textarea>
@@ -1199,6 +1842,12 @@ function renderDiagnosticCard(diagnostic) {
         </button>
       </div>
 
+      <div class="status-row">
+        ${renderStatusBadge(diagnostic)}
+        ${renderPriorityPill(diagnostic)}
+        ${diagnostic.flagged ? `<span class="flag-pill">${icon("flag")} Flagged</span>` : ""}
+      </div>
+
       <div class="diagnostic-meta">
         <span>${escapeHtml(diagnostic.status || "Open")}</span>
         <span>${escapeHtml(formatDate(diagnostic.createdAt))}</span>
@@ -1206,6 +1855,7 @@ function renderDiagnosticCard(diagnostic) {
         ${linkedRepair ? `<span>Repair: ${escapeHtml(linkedRepair.title)}</span>` : ""}
       </div>
 
+      ${diagnostic.scheduledDate ? `<div class="diagnostic-schedule">${renderScheduleMeta(diagnostic)}</div>` : ""}
       ${diagnostic.codes ? `<p><strong>Codes:</strong> ${escapeHtml(diagnostic.codes)}</p>` : ""}
       ${diagnostic.symptoms ? `<p><strong>Symptoms:</strong> ${escapeHtml(diagnostic.symptoms)}</p>` : ""}
       ${diagnostic.testsTried ? `<p><strong>Tests tried:</strong> ${escapeHtml(diagnostic.testsTried)}</p>` : ""}
@@ -1345,6 +1995,7 @@ function renderEntries(entries) {
             <span class="entry-chip">${getCategoryLabel(entry.category)}</span>
           </div>
           ${entry.notes ? `<p class="entry-note">${escapeHtml(entry.notes)}</p>` : ""}
+          ${renderEntryStatusLine(entry)}
           <div class="entry-date">${formatDate(entry.date)}</div>
         </div>
         <div class="entry-cost">${money(entry.cost)}</div>
@@ -1354,6 +2005,19 @@ function renderEntries(entries) {
       </article>
     `)
     .join("");
+}
+
+function renderEntryStatusLine(entry) {
+  const shouldShowStatus = entry.status && entry.status !== "Logged";
+  const shouldShowPriority = priorityWeight(entry.priority) >= 3 || entry.flagged;
+  const pieces = [
+    shouldShowStatus ? renderStatusBadge(entry, true) : "",
+    shouldShowPriority ? renderPriorityPill(entry) : "",
+    entry.flagged ? `<span class="flag-pill">${icon("flag")} Flagged</span>` : "",
+    entry.scheduledDate ? renderScheduleMeta(entry) : ""
+  ].filter(Boolean);
+
+  return pieces.length ? `<div class="entry-status-line">${pieces.join("")}</div>` : "";
 }
 
 function renderCosts(entries, summary = getCostSummary(entries, getProfile(selectedVehicle))) {
@@ -1595,9 +2259,16 @@ function icon(name) {
     activity: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h4l2-7 4 12 2-5h4"/></svg>',
     atv: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15h16"/><path d="M7 15l2-5h6l2 5"/><path d="M8 10h8"/><path d="M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/><path d="M17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg>',
     boat: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15l2-7h12l2 7"/><path d="M3 15h18l-2 4H5l-2-4Z"/><path d="M9 8V5h6v3"/><path d="M6 21c1.2 0 1.2-1 2.4-1s1.2 1 2.4 1 1.2-1 2.4-1 1.2 1 2.4 1 1.2-1 2.4-1"/></svg>',
+    box: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4-8 4-8-4Z"/><path d="M4 8v8l8 4 8-4V8"/><path d="M12 12v8"/><path d="M8 6l8 4"/></svg>',
+    calendar: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v3"/><path d="M18 4v3"/><path d="M4 8h16"/><path d="M5 6h14v14H5V6Z"/><path d="M8 12h3"/><path d="M13 12h3"/><path d="M8 16h3"/></svg>',
     car: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14"/><path d="M6 17l1-6 2-4h6l2 4 1 6"/><path d="M8 17v2"/><path d="M16 17v2"/><path d="M7 11h10"/></svg>',
     chevron: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
+    check: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>',
+    clock: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/><path d="M12 7v6l4 2"/></svg>',
     close: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>',
+    dashboard: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13h6V5H4v8Z"/><path d="M14 19h6V5h-6v14Z"/><path d="M4 19h6v-3H4v3Z"/></svg>',
+    flag: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 21V4"/><path d="M6 5h12l-2 5 2 5H6"/></svg>',
+    hourglass: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h12"/><path d="M6 20h12"/><path d="M7 4c0 4 3 5 5 8 2-3 5-4 5-8"/><path d="M7 20c0-4 3-5 5-8 2 3 5 4 5 8"/></svg>',
     image: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5V5Z"/><path d="M8 14l2.5-3 2.5 3 1.5-2 3.5 5H6l2-3Z"/><path d="M15 9h.01"/></svg>',
     motorcycle: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M8 15h4l3-5h3"/><path d="M10 10h3l2 5"/><path d="M12 10l-2-3"/><path d="M7 7h3"/></svg>',
     plus: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
@@ -1610,6 +2281,8 @@ function icon(name) {
     profile: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h8"/><path d="M8 10h8"/><path d="M8 14h5"/><path d="M6 3h12v18H6V3Z"/></svg>',
     receipt: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10v18l-2-1-2 1-2-1-2 1-2-1V3Z"/><path d="M9 8h6"/><path d="M9 12h6"/><path d="M9 16h4"/></svg>',
     save: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h11l3 3v13H5V4Z"/><path d="M8 4v6h8"/><path d="M8 20v-6h8v6"/></svg>',
+    tag: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12V5h7l9 9-7 7-9-9Z"/><path d="M8 8h.01"/></svg>',
+    warning: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l9 18H3L12 3Z"/><path d="M12 9v5"/><path d="M12 18h.01"/></svg>',
     list: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h12"/><path d="M8 12h12"/><path d="M8 18h12"/><path d="M4 6h.01"/><path d="M4 12h.01"/><path d="M4 18h.01"/></svg>',
     trash: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 14h10l1-14"/><path d="M9 7V4h6v3"/></svg>'
   };
