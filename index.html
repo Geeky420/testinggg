@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GEEKY GARAGE</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Garage vehicles">
+        <div class="brand-row">
+          <div class="brand">
+            <div class="brand-mark" aria-hidden="true">GG</div>
+            <div>
+              <h1>GEEKY GARAGE</h1>
+              <p id="garageSummary">5 vehicles</p>
+            </div>
+          </div>
+
+          <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to night mode" aria-pressed="false">
+            <span class="theme-icon" aria-hidden="true"></span>
+            <span id="themeLabel">Day</span>
+          </button>
+        </div>
+
+        <nav class="vehicle-nav" id="vehicleNav" aria-label="Vehicles"></nav>
+      </aside>
+
+      <main class="workspace">
+        <header class="vehicle-header">
+          <div>
+            <p class="label">Selected vehicle</p>
+            <h2 id="vehicleTitle">Yukon</h2>
+          </div>
+          <div class="header-stats" aria-label="Vehicle totals">
+            <div>
+              <span>Total spent</span>
+              <strong id="headerTotal">$0.00</strong>
+            </div>
+            <div>
+              <span>Entries</span>
+              <strong id="headerEntries">0</strong>
+            </div>
+          </div>
+        </header>
+
+        <section class="workspace-tabs" id="workspaceTabs" aria-label="Workspace views"></section>
+
+        <section class="category-strip" id="filterBar" aria-label="Entry filters"></section>
+
+        <div class="content-grid" id="logbookView">
+          <section class="log-panel" aria-labelledby="entryFormTitle">
+            <form class="entry-form" id="entryForm">
+              <div class="form-title">
+                <h3 id="entryFormTitle">Add entry</h3>
+                <span id="activeVehicleLabel">Yukon</span>
+              </div>
+
+              <label>
+                <span>Category</span>
+                <select id="categoryInput" required>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="repairs">Repairs</option>
+                  <option value="upgrades">Upgrades</option>
+                  <option value="notes">Notes</option>
+                </select>
+              </label>
+
+              <label>
+                <span>Title</span>
+                <input id="titleInput" type="text" placeholder="Oil Change" required />
+              </label>
+
+              <label>
+                <span>Cost</span>
+                <input id="costInput" type="number" min="0" step="0.01" placeholder="0.00" />
+              </label>
+
+              <label>
+                <span>Date</span>
+                <input id="dateInput" type="date" required />
+              </label>
+
+              <label class="notes-field">
+                <span>Notes</span>
+                <textarea id="notesInput" rows="3" placeholder="Dash came back when OBD scanner plugged in"></textarea>
+              </label>
+
+              <button class="save-button" type="submit">
+                <span class="button-icon" aria-hidden="true"></span>
+                Save entry
+              </button>
+            </form>
+
+            <div class="log-heading">
+              <div>
+                <p class="label">Activity log</p>
+                <h3 id="logTitle">All entries</h3>
+              </div>
+              <span id="visibleCount">0 shown</span>
+            </div>
+
+            <div class="entry-list" id="entryList"></div>
+          </section>
+
+          <aside class="cost-panel" aria-labelledby="costTitle">
+            <div class="cost-total">
+              <p class="label">Costs</p>
+              <h3 id="costTitle">$0.00</h3>
+              <span id="costSubtitle">Tracked for Yukon</span>
+            </div>
+
+            <div class="breakdown" id="costBreakdown"></div>
+
+            <div class="note-stack">
+              <div class="note-stack-head">
+                <p class="label">Notes</p>
+                <span id="noteCount">0</span>
+              </div>
+              <div id="noteList"></div>
+            </div>
+          </aside>
+        </div>
+
+        <section class="feature-panel is-hidden" id="profileView" aria-label="Vehicle profile"></section>
+        <section class="feature-panel is-hidden" id="diagnosticsView" aria-label="Diagnostics"></section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
