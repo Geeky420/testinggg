@@ -264,6 +264,7 @@ let selectedVehicle = state.selectedVehicle || getVehicleNames(state.vehicles)[0
 let activeFilter = "all";
 let activeView = workspaceViews.some((view) => view.id === state.activeView) ? state.activeView : "logbook";
 let vehicleMenuOpen = false;
+let addVehicleModalOpen = false;
 
 const els = {
   vehicleNav: document.querySelector("#vehicleNav"),
@@ -311,6 +312,29 @@ function init() {
     const toggle = event.target.closest("[data-toggle-vehicles]");
     if (toggle) {
       vehicleMenuOpen = !vehicleMenuOpen;
+      addVehicleModalOpen = false;
+      renderVehicles();
+      return;
+    }
+
+    const openAddVehicle = event.target.closest("[data-open-add-vehicle]");
+    if (openAddVehicle) {
+      vehicleMenuOpen = false;
+      addVehicleModalOpen = true;
+      renderVehicles();
+      requestAnimationFrame(() => document.querySelector("#addVehicleForm input[name='vehicleName']")?.focus());
+      return;
+    }
+
+    const closeAddVehicle = event.target.closest("[data-close-add-vehicle]");
+    if (closeAddVehicle) {
+      addVehicleModalOpen = false;
+      renderVehicles();
+      return;
+    }
+
+    if (event.target.matches("[data-add-vehicle-backdrop]")) {
+      addVehicleModalOpen = false;
       renderVehicles();
       return;
     }
@@ -326,6 +350,7 @@ function init() {
     selectedVehicle = button.dataset.vehicle;
     activeFilter = "all";
     vehicleMenuOpen = false;
+    addVehicleModalOpen = false;
     state.selectedVehicle = selectedVehicle;
     saveState();
     render();
@@ -344,9 +369,16 @@ function init() {
   });
 
   document.addEventListener("click", (event) => {
-    if (els.vehicleNav.contains(event.target)) return;
+    const clickPath = event.composedPath ? event.composedPath() : [];
+    if (els.vehicleNav.contains(event.target) || clickPath.includes(els.vehicleNav)) return;
     if (!vehicleMenuOpen) return;
     vehicleMenuOpen = false;
+    renderVehicles();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !addVehicleModalOpen) return;
+    addVehicleModalOpen = false;
     renderVehicles();
   });
 
@@ -607,6 +639,7 @@ async function addVehicle(form) {
   activeFilter = "all";
   activeView = "profile";
   vehicleMenuOpen = false;
+  addVehicleModalOpen = false;
   saveState();
   form.reset();
   render();
@@ -787,6 +820,7 @@ function renderVehicles() {
   const otherVehicles = state.vehicles.filter((vehicle) => vehicle.name !== selectedVehicle);
   const descriptor = vehicleDescriptor(selectedVehicle);
   const menuClass = vehicleMenuOpen ? " is-open" : "";
+  const modalClass = addVehicleModalOpen ? " is-open" : "";
 
   els.vehicleNav.innerHTML = `
     <div class="vehicle-switcher${menuClass}" style="${vehicleThemeStyle(selectedVehicle)}">
@@ -829,46 +863,64 @@ function renderVehicles() {
           }
         </div>
 
-        <form class="add-vehicle-form" id="addVehicleForm" autocomplete="off">
-          <div class="form-title">
-            <h3>Add vehicle / toy</h3>
-            <span>Future-ready profile</span>
+        <button class="add-vehicle-trigger" type="button" data-open-add-vehicle>
+          <span>${icon("plus")}</span>
+          <strong>Add vehicle / toy</strong>
+          <small>Car, motorcycle, boat, side-by-side...</small>
+        </button>
+      </div>
+
+      <div class="add-vehicle-modal${modalClass}" data-add-vehicle-backdrop aria-hidden="${!addVehicleModalOpen}">
+        <section class="add-vehicle-dialog" role="dialog" aria-modal="true" aria-labelledby="addVehicleTitle">
+          <div class="add-vehicle-dialog-head">
+            <div>
+              <p class="label">Garage setup</p>
+              <h3 id="addVehicleTitle">Add vehicle / toy</h3>
+            </div>
+            <button class="icon-button modal-close" type="button" data-close-add-vehicle aria-label="Close add vehicle window">
+              ${icon("close")}
+            </button>
           </div>
 
-          <label class="field-wide">
-            <span>Name</span>
-            <input name="vehicleName" type="text" placeholder="Trail Bike" required />
-          </label>
+          <form class="add-vehicle-form" id="addVehicleForm" autocomplete="off">
+            <label class="field-wide">
+              <span>Name</span>
+              <input name="vehicleName" type="text" placeholder="Trail Bike" required />
+            </label>
 
-          <label>
-            <span>Type</span>
-            <select name="profileType">
-              ${vehicleTypeOptions.map((type) => `<option value="${escapeAttr(type)}">${escapeHtml(type)}</option>`).join("")}
-            </select>
-          </label>
+            <label>
+              <span>Type</span>
+              <select name="profileType">
+                ${vehicleTypeOptions.map((type) => `<option value="${escapeAttr(type)}">${escapeHtml(type)}</option>`).join("")}
+              </select>
+            </label>
 
-          <label>
-            <span>Year</span>
-            <input name="year" type="text" placeholder="2020" />
-          </label>
+            <label>
+              <span>Year</span>
+              <input name="year" type="text" placeholder="2020" />
+            </label>
 
-          <label>
-            <span>Make</span>
-            <input name="make" type="text" placeholder="Honda" />
-          </label>
+            <label>
+              <span>Make</span>
+              <input name="make" type="text" placeholder="Honda" />
+            </label>
 
-          <label>
-            <span>Model</span>
-            <input name="model" type="text" placeholder="CRF250R" />
-          </label>
+            <label>
+              <span>Model</span>
+              <input name="model" type="text" placeholder="CRF250R" />
+            </label>
 
-          <label class="field-wide">
-            <span>Background photo</span>
-            <input name="vehiclePhoto" type="file" accept="image/*" />
-          </label>
+            <label class="field-wide">
+              <span>Background photo</span>
+              <input name="vehiclePhoto" type="file" accept="image/*" />
+            </label>
 
-          <button class="save-button field-wide" type="submit">${icon("plus")} Add to garage</button>
-        </form>
+            <div class="modal-actions field-wide">
+              <button class="ghost-button" type="button" data-close-add-vehicle>Cancel</button>
+              <button class="save-button" type="submit">${icon("plus")} Add to garage</button>
+            </div>
+          </form>
+        </section>
       </div>
     </div>
   `;
@@ -1406,6 +1458,7 @@ function icon(name) {
     boat: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15l2-7h12l2 7"/><path d="M3 15h18l-2 4H5l-2-4Z"/><path d="M9 8V5h6v3"/><path d="M6 21c1.2 0 1.2-1 2.4-1s1.2 1 2.4 1 1.2-1 2.4-1 1.2 1 2.4 1 1.2-1 2.4-1"/></svg>',
     car: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14"/><path d="M6 17l1-6 2-4h6l2 4 1 6"/><path d="M8 17v2"/><path d="M16 17v2"/><path d="M7 11h10"/></svg>',
     chevron: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
+    close: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>',
     image: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5V5Z"/><path d="M8 14l2.5-3 2.5 3 1.5-2 3.5 5H6l2-3Z"/><path d="M15 9h.01"/></svg>',
     motorcycle: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19 18a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M8 15h4l3-5h3"/><path d="M10 10h3l2 5"/><path d="M12 10l-2-3"/><path d="M7 7h3"/></svg>',
     plus: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
