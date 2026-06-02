@@ -98,6 +98,7 @@ const categories = [
   { id: "all", label: "All", icon: "list" },
   { id: "maintenance", label: "Maintenance", icon: "wrench" },
   { id: "repairs", label: "Repairs", icon: "alert" },
+  { id: "expense", label: "Expense", icon: "receipt" },
   { id: "upgrades", label: "Upgrades", icon: "bolt" },
   { id: "notes", label: "Notes", icon: "note" },
   { id: "costs", label: "Costs", icon: "receipt" }
@@ -128,16 +129,26 @@ const priorityLevels = [
   { id: "Low", label: "Low", weight: 1 },
   { id: "Medium", label: "Medium", weight: 2 },
   { id: "High", label: "High", weight: 3 },
-  { id: "Urgent", label: "Urgent", weight: 4 }
+  { id: "Critical", label: "Critical", weight: 4 }
 ];
 
 const diagnosticStatuses = ["Open", "Watching", "Waiting on parts", "Scheduled", "Done"];
 const entryStatuses = ["Logged", "Open", "Scheduled", "Watching", "Waiting on parts", "Done"];
+const taskStatuses = ["Not Started", "In Progress", "Done"];
+const projectStatuses = [
+  { id: "Running", label: "Running", icon: "check", color: "#16a34a" },
+  { id: "Needs Attention", label: "Needs Attention", icon: "alert", color: "#f97316" },
+  { id: "Broken", label: "Broken", icon: "warning", color: "#dc2626" },
+  { id: "Parked", label: "Parked", icon: "clock", color: "#64748b" },
+  { id: "Ready", label: "Ready", icon: "check", color: "#22c55e" }
+];
+const expenseCategories = ["Parts", "Labor", "Maintenance", "Upgrade", "Other"];
 
 const storageKey = "geeky-garage-state-v1";
 
 const seedProfiles = {
   Yukon: {
+    projectStatus: "Needs Attention",
     profileType: "Automotive",
     year: "2007",
     make: "GMC",
@@ -155,6 +166,7 @@ const seedProfiles = {
     notes: "Dash came back when OBD scanner plugged in."
   },
   MINI: {
+    projectStatus: "Running",
     profileType: "Automotive",
     year: "2012",
     make: "MINI",
@@ -172,6 +184,7 @@ const seedProfiles = {
     notes: ""
   },
   BMW: {
+    projectStatus: "Ready",
     profileType: "Automotive",
     year: "2015",
     make: "BMW",
@@ -189,6 +202,7 @@ const seedProfiles = {
     notes: ""
   },
   Dakota: {
+    projectStatus: "Parked",
     profileType: "Automotive",
     year: "2001",
     make: "Dodge",
@@ -206,6 +220,7 @@ const seedProfiles = {
     notes: ""
   },
   Boat: {
+    projectStatus: "Ready",
     profileType: "Boat",
     year: "",
     make: "",
@@ -259,6 +274,16 @@ const seedEntries = [
     notes: "Dash came back when OBD scanner plugged in."
   },
   {
+    id: "seed-yukon-ground-expense",
+    vehicle: "Yukon",
+    category: "expense",
+    title: "Ground straps and electrical supplies",
+    cost: 38.44,
+    expenseCategory: "Parts",
+    date: "2026-05-31",
+    notes: "Supplies set aside for electrical diagnosis."
+  },
+  {
     id: "seed-boat-electronics",
     vehicle: "Boat",
     category: "upgrades",
@@ -266,6 +291,36 @@ const seedEntries = [
     cost: 642.11,
     date: "2026-05-12",
     notes: "Electronics refresh and wiring parts."
+  }
+];
+
+const seedTasks = [
+  {
+    id: "task-yukon-electrical-next",
+    vehicle: "Yukon",
+    title: "Verify DLC power, grounds, and cluster feeds",
+    priority: "Critical",
+    status: "In Progress",
+    dueDate: "2026-06-02",
+    notes: "Start with battery voltage, DLC power/ground, body grounds, then cluster feeds."
+  },
+  {
+    id: "task-yukon-brakes-check",
+    vehicle: "Yukon",
+    title: "Recheck front brake hardware",
+    priority: "High",
+    status: "Not Started",
+    dueDate: "",
+    notes: "Confirm pads seated and rotor condition after last brake work."
+  },
+  {
+    id: "task-boat-electronics-test",
+    vehicle: "Boat",
+    title: "Bench test new electronics before install",
+    priority: "Medium",
+    status: "Not Started",
+    dueDate: "",
+    notes: "Confirm power, screen, and wiring layout before mounting."
   }
 ];
 
@@ -306,6 +361,9 @@ let activeView = isKnownView(state.activeView) ? state.activeView : "dashboard";
 let costMode = costModes.some((mode) => mode.id === state.costMode) ? state.costMode : "logged";
 let vehicleMenuOpen = false;
 let addVehicleModalOpen = false;
+let entryFormOpen = false;
+let quickAddOpen = false;
+let quickAddMode = "";
 
 const els = {
   vehicleNav: document.querySelector("#vehicleNav"),
@@ -326,6 +384,7 @@ const els = {
   categoryInput: document.querySelector("#categoryInput"),
   titleInput: document.querySelector("#titleInput"),
   costInput: document.querySelector("#costInput"),
+  expenseCategoryInput: document.querySelector("#expenseCategoryInput"),
   dateInput: document.querySelector("#dateInput"),
   statusSymbolInput: document.querySelector("#statusSymbolInput"),
   priorityInput: document.querySelector("#priorityInput"),
@@ -338,6 +397,7 @@ const els = {
   logTitle: document.querySelector("#logTitle"),
   visibleCount: document.querySelector("#visibleCount"),
   entryList: document.querySelector("#entryList"),
+  toggleEntryForm: document.querySelector("#toggleEntryForm"),
   costTitle: document.querySelector("#costTitle"),
   costSubtitle: document.querySelector("#costSubtitle"),
   costModeToggle: document.querySelector("#costModeToggle"),
@@ -346,7 +406,8 @@ const els = {
   noteCount: document.querySelector("#noteCount"),
   noteList: document.querySelector("#noteList"),
   themeToggle: document.querySelector("#themeToggle"),
-  themeLabel: document.querySelector("#themeLabel")
+  themeLabel: document.querySelector("#themeLabel"),
+  quickAddModal: document.querySelector("#quickAddModal")
 };
 
 init();
@@ -355,6 +416,7 @@ function init() {
   state.theme = state.theme === "night" ? "night" : "day";
   state.vehicles = normalizeVehicles(state.vehicles);
   state.entries = normalizeEntries(state.entries, state.vehicles);
+  state.tasks = normalizeTasks(state.tasks, state.vehicles);
   state.profiles = mergeProfiles(state.profiles, state.vehicles);
   state.diagnostics = normalizeDiagnostics(state.diagnostics, state.vehicles);
   selectedVehicle = getVehicleNames(state.vehicles).includes(selectedVehicle) ? selectedVehicle : getVehicleNames(state.vehicles)[0];
@@ -463,7 +525,20 @@ function init() {
     render();
   });
 
+  els.toggleEntryForm.addEventListener("click", () => {
+    entryFormOpen = !entryFormOpen;
+    renderEntryFormState();
+  });
+
   els.dashboardView.addEventListener("click", (event) => {
+    const quickAdd = event.target.closest("[data-open-quick-add]");
+    if (quickAdd) {
+      quickAddOpen = true;
+      quickAddMode = "";
+      renderQuickAddModal();
+      return;
+    }
+
     const item = event.target.closest("[data-dashboard-item]");
     if (item) {
       if (item.dataset.dashboardSource === "entry") {
@@ -473,8 +548,12 @@ function init() {
 
       selectedVehicle = item.dataset.dashboardVehicle;
       selectedEntryId = "";
-      activeView = "diagnostics";
-      activeFilter = item.dataset.dashboardCategory || "all";
+      if (item.dataset.dashboardSource === "task") {
+        activeView = "dashboard";
+      } else {
+        activeView = "diagnostics";
+        activeFilter = item.dataset.dashboardCategory || "all";
+      }
       state.selectedVehicle = selectedVehicle;
       state.activeView = activeView;
       saveState();
@@ -491,8 +570,44 @@ function init() {
     render();
   });
 
+  els.quickAddModal.addEventListener("click", (event) => {
+    if (event.target.matches("[data-quick-add-backdrop]") || event.target.closest("[data-close-quick-add]")) {
+      closeQuickAdd();
+      return;
+    }
+
+    const option = event.target.closest("[data-quick-add-mode]");
+    if (!option) return;
+    quickAddMode = option.dataset.quickAddMode;
+    if (quickAddMode === "vehicle") {
+      quickAddOpen = false;
+      quickAddMode = "";
+      addVehicleModalOpen = true;
+      renderQuickAddModal();
+      renderVehicles();
+      requestAnimationFrame(() => document.querySelector("#addVehicleForm input[name='vehicleName']")?.focus());
+      return;
+    }
+    renderQuickAddModal();
+  });
+
+  els.quickAddModal.addEventListener("submit", (event) => {
+    if (!event.target.matches("[data-quick-add-form]")) return;
+    event.preventDefault();
+    saveQuickAdd(event.target);
+  });
+
+  els.quickAddModal.addEventListener("change", (event) => {
+    if (!event.target.matches("select[name='category']")) return;
+    const form = event.target.form;
+    if (form?.elements.expenseCategory) {
+      form.elements.expenseCategory.value = defaultExpenseCategoryForCategory(event.target.value);
+    }
+  });
+
   els.categoryInput.addEventListener("change", () => {
     els.statusSymbolInput.value = defaultSymbolForCategory(els.categoryInput.value);
+    els.expenseCategoryInput.value = defaultExpenseCategoryForCategory(els.categoryInput.value);
     if (els.categoryInput.value === "repairs") {
       els.priorityInput.value = "High";
       els.flaggedInput.checked = true;
@@ -554,6 +669,9 @@ function init() {
     const form = event.target.form;
     const category = event.target.value;
     form.elements.statusSymbol.value = defaultSymbolForCategory(category);
+    if (form.elements.expenseCategory) {
+      form.elements.expenseCategory.value = defaultExpenseCategoryForCategory(category);
+    }
     if (category === "repairs") {
       form.elements.status.value = "Open";
       form.elements.priority.value = "High";
@@ -622,11 +740,12 @@ function loadState() {
         selectedVehicle: selected,
         selectedEntryId: typeof saved.selectedEntryId === "string" ? saved.selectedEntryId : "",
         entries: normalizeEntries(saved.entries.filter((entry) => vehicleNames.includes(entry.vehicle)), vehicles),
+        tasks: normalizeTasks(saved.tasks, vehicles),
         profiles: mergeProfiles(saved.profiles, vehicles),
         diagnostics: normalizeDiagnostics(saved.diagnostics, vehicles),
         theme: saved.theme === "night" ? "night" : "day",
         costMode: costModes.some((mode) => mode.id === saved.costMode) ? saved.costMode : "logged",
-        activeView: isKnownView(saved.activeView) ? saved.activeView : "dashboard"
+        activeView: "dashboard"
       };
     }
   } catch {
@@ -638,6 +757,7 @@ function loadState() {
     selectedVehicle: "Yukon",
     selectedEntryId: "",
     entries: normalizeEntries(seedEntries),
+    tasks: normalizeTasks(seedTasks),
     profiles: mergeProfiles(),
     diagnostics: normalizeDiagnostics(seedDiagnostics),
     theme: "day",
@@ -689,6 +809,7 @@ function mergeProfiles(savedProfiles = {}, vehicleRecords = defaultVehicles) {
       ...(savedProfiles?.[vehicle] || {})
     };
     profiles[vehicle].profileType = profiles[vehicle].profileType || record.type;
+    profiles[vehicle].projectStatus = getProjectStatus(profiles[vehicle].projectStatus).id;
     return profiles;
   }, {});
 }
@@ -711,11 +832,33 @@ function normalizeEntry(entry) {
     status: entry.status || (isRepair ? "Open" : "Logged"),
     statusSymbol: statusSymbols.some((symbol) => symbol.id === entry.statusSymbol) ? entry.statusSymbol : defaultSymbolForCategory(category),
     statusLabel: entry.statusLabel || (isRepair ? "Repair open" : ""),
-    priority: priorityLevels.some((priority) => priority.id === entry.priority) ? entry.priority : isRepair ? "High" : "Medium",
+    priority: normalizePriority(entry.priority || (isRepair ? "High" : "Medium")),
     flagged: typeof entry.flagged === "boolean" ? entry.flagged : isRepair,
     scheduledDate: entry.scheduledDate || "",
     scheduledTime: entry.scheduledTime || "",
-    durationHours: entry.durationHours || ""
+    durationHours: entry.durationHours || "",
+    expenseCategory: expenseCategories.includes(entry.expenseCategory) ? entry.expenseCategory : defaultExpenseCategoryForCategory(category)
+  };
+}
+
+function normalizeTasks(savedTasks, vehicleRecords = defaultVehicles) {
+  const vehicleNames = getVehicleNames(normalizeVehicles(vehicleRecords));
+  const tasks = Array.isArray(savedTasks) ? savedTasks : seedTasks;
+  return tasks
+    .filter((task) => vehicleNames.includes(task.vehicle))
+    .map((task) => normalizeTask(task));
+}
+
+function normalizeTask(task) {
+  return {
+    id: task.id || `task-${Date.now()}`,
+    vehicle: task.vehicle || selectedVehicle,
+    title: String(task.title || "").trim(),
+    priority: normalizePriority(task.priority || "Medium"),
+    status: taskStatuses.includes(task.status) ? task.status : "Not Started",
+    dueDate: task.dueDate || task.scheduledDate || "",
+    notes: String(task.notes || "").trim(),
+    createdAt: task.createdAt || today()
   };
 }
 
@@ -733,7 +876,7 @@ function normalizeDiagnostic(item) {
     status: item.status || "Open",
     statusSymbol: statusSymbols.some((symbol) => symbol.id === item.statusSymbol) ? item.statusSymbol : "testing",
     statusLabel: item.statusLabel || item.status || "Diagnostic open",
-    priority: priorityLevels.some((priority) => priority.id === item.priority) ? item.priority : item.status === "Done" ? "Low" : "High",
+    priority: normalizePriority(item.priority || (item.status === "Done" ? "Low" : "High")),
     flagged: typeof item.flagged === "boolean" ? item.flagged : item.status !== "Done",
     scheduledDate: item.scheduledDate || "",
     scheduledTime: item.scheduledTime || "",
@@ -745,6 +888,7 @@ function defaultProfileFor(record) {
   const type = String(record?.type || "Automotive");
   const name = String(record?.name || "");
   const valueFields = {
+    projectStatus: "Running",
     pricePaid: "",
     sellValue: ""
   };
@@ -833,8 +977,10 @@ function saveState() {
 function renderStaticFormOptions() {
   els.statusSymbolInput.innerHTML = renderStatusSymbolOptions("repair");
   els.priorityInput.innerHTML = renderPriorityOptions("Medium");
+  els.expenseCategoryInput.innerHTML = renderExpenseCategoryOptions("Maintenance");
   els.statusSymbolInput.value = defaultSymbolForCategory(els.categoryInput.value);
   els.priorityInput.value = "Medium";
+  els.expenseCategoryInput.value = defaultExpenseCategoryForCategory(els.categoryInput.value);
 }
 
 async function addVehicle(form) {
@@ -854,6 +1000,7 @@ async function addVehicle(form) {
     [name]: {
       ...defaultProfileFor(record),
       profileType: type,
+      projectStatus: String(formData.get("projectStatus") || "Running"),
       year: String(formData.get("year") || "").trim(),
       make: String(formData.get("make") || "").trim(),
       model: String(formData.get("model") || name).trim() || name,
@@ -924,6 +1071,7 @@ function addEntry() {
     scheduledDate,
     scheduledTime: els.scheduleTimeInput.value || "",
     durationHours: els.durationInput.value || "",
+    expenseCategory: els.expenseCategoryInput.value || defaultExpenseCategoryForCategory(category),
     notes: els.notesInput.value.trim()
   };
 
@@ -935,8 +1083,9 @@ function addEntry() {
   els.categoryInput.value = entry.category;
   els.statusSymbolInput.value = defaultSymbolForCategory(entry.category);
   els.priorityInput.value = entry.category === "repairs" ? "High" : "Medium";
+  els.expenseCategoryInput.value = defaultExpenseCategoryForCategory(entry.category);
   els.flaggedInput.checked = entry.category === "repairs";
-  els.titleInput.focus();
+  entryFormOpen = false;
   render();
 }
 
@@ -994,6 +1143,7 @@ function saveEntryDetail(form) {
     scheduledDate: String(formData.get("scheduledDate") || ""),
     scheduledTime: String(formData.get("scheduledTime") || ""),
     durationHours: String(formData.get("durationHours") || ""),
+    expenseCategory: String(formData.get("expenseCategory") || defaultExpenseCategoryForCategory(existing.category)),
     notes: String(formData.get("notes") || "").trim()
   });
 
@@ -1004,6 +1154,234 @@ function saveEntryDetail(form) {
   selectedVehicle = updated.vehicle;
   saveState();
   render();
+}
+
+function saveQuickAdd(form) {
+  const formData = new FormData(form);
+  const mode = form.dataset.quickAddForm;
+  const vehicle = String(formData.get("vehicle") || selectedVehicle);
+
+  if (mode === "task") {
+    const title = String(formData.get("title") || "").trim();
+    if (!title) return;
+    state.tasks = [
+      normalizeTask({
+        id: `task-${Date.now()}`,
+        vehicle,
+        title,
+        priority: String(formData.get("priority") || "Medium"),
+        status: String(formData.get("status") || "Not Started"),
+        dueDate: String(formData.get("dueDate") || ""),
+        notes: String(formData.get("notes") || "").trim(),
+        createdAt: today()
+      }),
+      ...state.tasks
+    ];
+  }
+
+  if (mode === "expense" || mode === "timeline") {
+    const title = String(formData.get("title") || "").trim();
+    if (!title) return;
+    const category = mode === "expense" ? "expense" : String(formData.get("category") || "notes");
+    state.entries = [
+      normalizeEntry({
+        id: `entry-${Date.now()}`,
+        vehicle,
+        category,
+        title,
+        cost: Number.parseFloat(formData.get("cost") || "0"),
+        date: String(formData.get("date") || today()),
+        status: category === "repairs" ? "Open" : "Logged",
+        statusSymbol: defaultSymbolForCategory(category),
+        statusLabel: "",
+        priority: category === "repairs" ? "High" : "Medium",
+        flagged: category === "repairs",
+        scheduledDate: "",
+        scheduledTime: "",
+        durationHours: "",
+        expenseCategory: String(formData.get("expenseCategory") || defaultExpenseCategoryForCategory(category)),
+        notes: String(formData.get("notes") || "").trim()
+      }),
+      ...state.entries
+    ];
+  }
+
+  selectedVehicle = vehicle;
+  closeQuickAdd(false);
+  saveState();
+  render();
+}
+
+function closeQuickAdd(shouldRender = true) {
+  quickAddOpen = false;
+  quickAddMode = "";
+  if (shouldRender) {
+    renderQuickAddModal();
+  }
+}
+
+function renderQuickAddModal() {
+  if (!quickAddOpen) {
+    els.quickAddModal.classList.remove("is-open");
+    els.quickAddModal.setAttribute("aria-hidden", "true");
+    els.quickAddModal.innerHTML = "";
+    return;
+  }
+
+  els.quickAddModal.classList.add("is-open");
+  els.quickAddModal.setAttribute("aria-hidden", "false");
+
+  els.quickAddModal.innerHTML = `
+    <div class="quick-add-backdrop" data-quick-add-backdrop>
+      <section class="quick-add-dialog" role="dialog" aria-modal="true" aria-labelledby="quickAddTitle">
+        <div class="quick-add-head">
+          <div>
+            <p class="label">Fast command</p>
+            <h3 id="quickAddTitle">Quick Add</h3>
+          </div>
+          <button class="icon-button modal-close" type="button" data-close-quick-add aria-label="Close Quick Add">
+            ${icon("close")}
+          </button>
+        </div>
+
+        ${quickAddMode ? renderQuickAddForm(quickAddMode) : renderQuickAddOptions()}
+      </section>
+    </div>
+  `;
+}
+
+function renderQuickAddOptions() {
+  const options = [
+    { id: "task", label: "Add Task", meta: "Priority, status, due date", iconName: "list" },
+    { id: "expense", label: "Add Expense", meta: "Parts, labor, maintenance", iconName: "receipt" },
+    { id: "timeline", label: "Add Timeline Note", meta: "Repair, note, upgrade, maintenance", iconName: "note" },
+    { id: "vehicle", label: "Add Vehicle / Project", meta: "Car, boat, bike, toy", iconName: "car" }
+  ];
+
+  return `
+    <div class="quick-add-options">
+      ${options
+        .map(
+          (option) => `
+            <button class="quick-add-option" type="button" data-quick-add-mode="${escapeAttr(option.id)}">
+              <span>${icon(option.iconName)}</span>
+              <strong>${escapeHtml(option.label)}</strong>
+              <small>${escapeHtml(option.meta)}</small>
+            </button>
+          `
+        )
+        .join("")}
+    </div>
+  `;
+}
+
+function renderQuickAddForm(mode) {
+  if (mode === "task") {
+    return `
+      <form class="quick-add-form" data-quick-add-form="task" autocomplete="off">
+        ${renderQuickAddVehicleField()}
+        <label class="field-wide">
+          <span>Task title</span>
+          <input name="title" type="text" placeholder="Check Yukon grounds" required />
+        </label>
+        <label>
+          <span>Priority</span>
+          <select name="priority">${renderPriorityOptions("High")}</select>
+        </label>
+        <label>
+          <span>Status</span>
+          <select name="status">${renderTaskStatusOptions("Not Started")}</select>
+        </label>
+        <label>
+          <span>Due date</span>
+          <input name="dueDate" type="date" />
+        </label>
+        <label class="field-wide">
+          <span>Notes</span>
+          <textarea name="notes" rows="3" placeholder="Tools, parts, test order, reminder..."></textarea>
+        </label>
+        ${renderQuickAddActions()}
+      </form>
+    `;
+  }
+
+  if (mode === "expense") {
+    return `
+      <form class="quick-add-form" data-quick-add-form="expense" autocomplete="off">
+        ${renderQuickAddVehicleField()}
+        <label class="field-wide">
+          <span>Expense title</span>
+          <input name="title" type="text" placeholder="Brake pads and hardware" required />
+        </label>
+        <label>
+          <span>Cost</span>
+          <input name="cost" type="number" min="0" step="0.01" placeholder="0.00" />
+        </label>
+        <label>
+          <span>Expense category</span>
+          <select name="expenseCategory">${renderExpenseCategoryOptions("Parts")}</select>
+        </label>
+        <label>
+          <span>Date</span>
+          <input name="date" type="date" value="${escapeAttr(today())}" />
+        </label>
+        <label class="field-wide">
+          <span>Notes</span>
+          <textarea name="notes" rows="3" placeholder="Receipt, source, part number..."></textarea>
+        </label>
+        ${renderQuickAddActions()}
+      </form>
+    `;
+  }
+
+  return `
+    <form class="quick-add-form" data-quick-add-form="timeline" autocomplete="off">
+      ${renderQuickAddVehicleField()}
+      <label>
+        <span>Timeline type</span>
+        <select name="category">${renderCategoryOptions("notes")}</select>
+      </label>
+      <label class="field-wide">
+        <span>Title</span>
+        <input name="title" type="text" placeholder="Dash came back when scanner plugged in" required />
+      </label>
+      <label>
+        <span>Cost</span>
+        <input name="cost" type="number" min="0" step="0.01" placeholder="0.00" />
+      </label>
+      <label>
+        <span>Expense category</span>
+        <select name="expenseCategory">${renderExpenseCategoryOptions("Other")}</select>
+      </label>
+      <label>
+        <span>Date</span>
+        <input name="date" type="date" value="${escapeAttr(today())}" />
+      </label>
+      <label class="field-wide">
+        <span>Notes</span>
+        <textarea name="notes" rows="3" placeholder="What happened, what changed, what to do next..."></textarea>
+      </label>
+      ${renderQuickAddActions()}
+    </form>
+  `;
+}
+
+function renderQuickAddVehicleField() {
+  return `
+    <label>
+      <span>Vehicle / project</span>
+      <select name="vehicle">${renderVehicleOptions(selectedVehicle)}</select>
+    </label>
+  `;
+}
+
+function renderQuickAddActions() {
+  return `
+    <div class="modal-actions field-wide">
+      <button class="ghost-button" type="button" data-quick-add-mode="">Back</button>
+      <button class="save-button" type="submit">${icon("save")} Save</button>
+    </div>
+  `;
 }
 
 function scrollToWorkspaceTop() {
@@ -1104,6 +1482,8 @@ function render() {
   renderVehicles();
   renderWorkspaceTabs();
   renderDashboard();
+  renderQuickAddModal();
+  renderEntryFormState();
   renderFilters();
   renderEntries(shownEntries);
   renderCosts(vehicleEntries, costSummary);
@@ -1144,84 +1524,97 @@ function renderWorkspaceTabs() {
     .join("");
 }
 
+function renderEntryFormState() {
+  els.entryForm.classList.toggle("is-collapsed", !entryFormOpen);
+  els.toggleEntryForm.innerHTML = `${icon(entryFormOpen ? "close" : "plus")} ${entryFormOpen ? "Hide Entry Form" : "Add Timeline Entry"}`;
+  els.toggleEntryForm.setAttribute("aria-expanded", String(entryFormOpen));
+}
+
 function renderDashboard() {
   const data = getDashboardData();
-  const attentionItems = data.attentionItems.slice(0, 6);
-  const scheduleGroups = getScheduleGroups(data.activeItems);
+  const priorityItems = data.todayPriorities.slice(0, 3);
+  const recentExpenses = data.recentExpenses.slice(0, 5);
+  const recentActivity = data.recentActivity.slice(0, 5);
 
   els.dashboardView.innerHTML = `
-    <div class="feature-heading dashboard-heading">
+    <div class="feature-heading dashboard-heading command-heading">
       <div>
-        <p class="label">Garage dashboard</p>
-        <h3>Totals, attention, and scheduled work</h3>
+        <p class="label">Geeky Garage command center</p>
+        <h3>What needs attention right now</h3>
       </div>
-      <span>${data.activeItems.length} active ${data.activeItems.length === 1 ? "item" : "items"}</span>
+      <button class="save-button quick-add-button" type="button" data-open-quick-add>${icon("plus")} Quick Add</button>
     </div>
+
+    <section class="today-priority-panel" aria-label="Today's priorities">
+      <div class="panel-heading">
+        <div>
+          <p class="label">Today's priorities</p>
+          <h4>Top 3 urgent tasks</h4>
+        </div>
+        <span>${data.todayPriorities.length} active</span>
+      </div>
+      <div class="priority-stack">
+        ${
+          priorityItems.length
+            ? priorityItems.map(renderCommandPriorityItem).join("")
+            : `<div class="empty-state compact-dashboard">No high priority tasks yet. Use Quick Add to create your next action.</div>`
+        }
+      </div>
+    </section>
 
     <section class="dashboard-stat-grid" aria-label="Garage totals">
       ${renderDashboardStat("Total invested", money(data.totals.totalInvested), "Price paid + logged work", "receipt")}
-      ${renderDashboardStat("Logged spend", money(data.totals.loggedTotal), `${state.entries.length} saved ${state.entries.length === 1 ? "entry" : "entries"}`, "list")}
-      ${renderDashboardStat("Sell value", money(data.totals.sellValue), data.totals.sellValue ? "Across all profiles" : "Add values in profiles", "tag")}
-      ${renderDashboardStat("Attention", String(data.attentionItems.length), "Flagged, urgent, or due soon", "alert", data.attentionItems.length ? "warning" : "good")}
-      ${renderDashboardStat("Scheduled", String(data.scheduledItems.length), "Work with dates set", "calendar")}
+      ${renderDashboardStat("Open tasks", String(data.openTasks.length), "Not started or in progress", "list")}
+      ${renderDashboardStat("Critical / High", String(data.urgentTaskCount), "Dashboard surfaced first", "alert", data.urgentTaskCount ? "warning" : "good")}
+      ${renderDashboardStat("Recent spend", money(data.recentExpenseTotal), "Last 5 expenses", "receipt")}
+      ${renderDashboardStat("Vehicles", String(state.vehicles.length), "Projects in garage", "car")}
     </section>
 
-    <div class="dashboard-layout">
-      <section class="dashboard-panel vehicle-dashboard-panel" aria-label="Vehicle status">
+    <section class="dashboard-panel vehicle-dashboard-panel command-vehicle-panel" aria-label="Vehicle command cards">
         <div class="panel-heading">
           <div>
-            <p class="label">Vehicle status</p>
-            <h4>All toys at a glance</h4>
+            <p class="label">Vehicles / projects</p>
+            <h4>Command cards</h4>
           </div>
           <span>${state.vehicles.length} tracked</span>
         </div>
         <div class="vehicle-status-grid">
           ${data.vehicleSummaries.map(renderVehicleStatusCard).join("")}
         </div>
-      </section>
-
-      <section class="dashboard-panel attention-panel" aria-label="Attention needed">
-        <div class="panel-heading">
-          <div>
-            <p class="label">Attention needed</p>
-            <h4>Fix first</h4>
-          </div>
-          <span>${data.attentionItems.length}</span>
-        </div>
-        <div class="dashboard-list">
-          ${attentionItems.length ? attentionItems.map((item) => renderDashboardItem(item, "attention")).join("") : `<div class="empty-state compact-dashboard">Nothing is flagged right now.</div>`}
-        </div>
-      </section>
-    </div>
+    </section>
 
     <div class="dashboard-layout lower">
-      <section class="dashboard-panel schedule-panel" aria-label="Work schedule">
+      <section class="dashboard-panel expense-panel" aria-label="Recent expenses">
         <div class="panel-heading">
           <div>
-            <p class="label">Schedule</p>
-            <h4>Planned garage time</h4>
+            <p class="label">Expense tracking</p>
+            <h4>Recent expenses</h4>
           </div>
-          <span>${data.scheduledItems.length} dated</span>
+          <span>${money(data.recentExpenseTotal)}</span>
         </div>
-        <div class="schedule-stack">
+        <div class="timeline-list">
           ${
-            scheduleGroups.some((group) => group.items.length)
-              ? scheduleGroups.map(renderScheduleGroup).join("")
-              : `<div class="empty-state compact-dashboard">No work is scheduled yet. Add a date from Logbook or Diagnostics.</div>`
+            recentExpenses.length
+              ? recentExpenses.map(renderExpenseLine).join("")
+              : `<div class="empty-state compact-dashboard">No expenses logged yet.</div>`
           }
         </div>
       </section>
 
-      <section class="dashboard-panel symbol-panel" aria-label="Status symbol options">
+      <section class="dashboard-panel activity-panel" aria-label="Recent activity">
         <div class="panel-heading">
           <div>
-            <p class="label">Symbol picker</p>
-            <h4>Reusable flags</h4>
+            <p class="label">Activity timeline</p>
+            <h4>Latest history</h4>
           </div>
-          <span>${statusSymbols.length} options</span>
+          <span>${state.entries.length} entries</span>
         </div>
-        <div class="symbol-grid">
-          ${statusSymbols.map(renderSymbolOption).join("")}
+        <div class="timeline-list">
+          ${
+            recentActivity.length
+              ? recentActivity.map(renderActivityLine).join("")
+              : `<div class="empty-state compact-dashboard">No activity yet.</div>`
+          }
         </div>
       </section>
     </div>
@@ -1231,9 +1624,14 @@ function renderDashboard() {
 function getDashboardData() {
   const items = getDashboardItems();
   const activeItems = items.filter((item) => isActiveItem(item));
+  const openTasks = items.filter((item) => item.source === "task" && !isDoneItem(item)).sort(compareDashboardItems);
+  const priorityTasks = openTasks.filter((item) => priorityWeight(item.priority) >= 3);
+  const todayPriorities = openTasks;
   const attentionItems = activeItems.filter((item) => needsAttention(item)).sort(compareDashboardItems);
   const scheduledItems = activeItems.filter((item) => item.scheduledDate && !isDoneItem(item)).sort(compareSchedule);
   const vehicleSummaries = getVehicleDashboardSummaries(items);
+  const recentExpenses = getRecentExpenses();
+  const recentActivity = getRecentActivity();
 
   const totals = vehicleSummaries.reduce(
     (total, vehicle) => {
@@ -1249,9 +1647,15 @@ function getDashboardData() {
   return {
     items,
     activeItems,
+    openTasks,
+    todayPriorities,
+    urgentTaskCount: priorityTasks.length,
     attentionItems,
     scheduledItems,
     vehicleSummaries,
+    recentExpenses,
+    recentActivity,
+    recentExpenseTotal: sumCost(recentExpenses.slice(0, 5)),
     totals
   };
 }
@@ -1270,8 +1674,9 @@ function renderDashboardStat(label, value, meta, iconName, tone = "") {
 }
 
 function renderVehicleStatusCard(vehicle) {
-  const status = vehicle.status;
-  const nextLabel = vehicle.nextItem ? formatSchedule(vehicle.nextItem) : "No date set";
+  const status = vehicle.projectStatus;
+  const nextTitle = vehicle.nextItem?.title || "Add next task/action";
+  const nextMeta = vehicle.nextItem ? formatDashboardNextMeta(vehicle.nextItem) : "Nothing urgent logged";
 
   return `
     <button class="vehicle-status-card ${vehicle.record.name === selectedVehicle ? "active" : ""}" type="button" data-dashboard-vehicle="${escapeAttr(vehicle.record.name)}" style="${vehicleThemeStyle(vehicle.record.name)}">
@@ -1282,12 +1687,65 @@ function renderVehicleStatusCard(vehicle) {
           <small>${escapeHtml(vehicle.record.type || "Vehicle")}</small>
         </span>
       </span>
-      <span class="vehicle-status-label">${escapeHtml(status.label)}</span>
+      <span class="vehicle-card-badges">
+        <span class="project-status-badge" style="--status-color: ${status.color}">${icon(status.icon)} ${escapeHtml(status.label)}</span>
+        ${renderPriorityPill({ priority: vehicle.currentPriority })}
+      </span>
+      <span class="vehicle-next-task">
+        <small>Next action</small>
+        <strong>${escapeHtml(nextTitle)}</strong>
+        <span>${escapeHtml(nextMeta)}</span>
+      </span>
       <span class="vehicle-status-money">${money(vehicle.summary.totalInvested)}</span>
       <span class="vehicle-status-meta">
-        ${vehicle.attentionCount} attention / ${vehicle.scheduledCount} scheduled
+        ${vehicle.taskCount} open tasks / ${vehicle.attentionCount} attention
       </span>
-      <span class="vehicle-status-next">${escapeHtml(nextLabel)}</span>
+    </button>
+  `;
+}
+
+function renderCommandPriorityItem(item) {
+  const symbol = getStatusSymbol(item.statusSymbol);
+  return `
+    <button class="priority-card ${item.source}" type="button" data-dashboard-item="${escapeAttr(item.id)}" data-dashboard-source="${escapeAttr(item.source)}" data-dashboard-vehicle="${escapeAttr(item.vehicle)}" data-dashboard-category="${escapeAttr(item.category || "all")}">
+      <span class="priority-card-icon" style="--status-color: ${symbol.color}" aria-hidden="true">${icon(symbol.icon)}</span>
+      <span class="priority-card-main">
+        <span class="priority-card-top">
+          <strong>${escapeHtml(item.vehicle)}</strong>
+          ${renderPriorityPill(item)}
+        </span>
+        <span class="priority-card-title">${escapeHtml(item.title)}</span>
+        <span class="priority-card-meta">
+          ${escapeHtml(item.typeLabel)} / ${escapeHtml(item.status || "Open")}
+          ${item.scheduledDate ? ` / ${escapeHtml(formatSchedule(item))}` : ""}
+        </span>
+      </span>
+    </button>
+  `;
+}
+
+function renderExpenseLine(entry) {
+  return `
+    <button class="timeline-line expense-line" type="button" data-dashboard-item="${escapeAttr(entry.id)}" data-dashboard-source="entry" data-dashboard-vehicle="${escapeAttr(entry.vehicle)}" data-dashboard-category="${escapeAttr(entry.category)}">
+      <span class="timeline-line-icon">${icon("receipt")}</span>
+      <span>
+        <strong>${escapeHtml(entry.title)}</strong>
+        <small>${escapeHtml(entry.vehicle)} / ${escapeHtml(entry.expenseCategory || defaultExpenseCategoryForCategory(entry.category))} / ${escapeHtml(formatDate(entry.date))}</small>
+      </span>
+      <b>${money(entry.cost)}</b>
+    </button>
+  `;
+}
+
+function renderActivityLine(entry) {
+  return `
+    <button class="timeline-line activity-line" type="button" data-dashboard-item="${escapeAttr(entry.id)}" data-dashboard-source="entry" data-dashboard-vehicle="${escapeAttr(entry.vehicle)}" data-dashboard-category="${escapeAttr(entry.category)}">
+      <span class="timeline-line-icon">${icon(categoryIcon(entry.category))}</span>
+      <span>
+        <strong>${escapeHtml(entry.title)}</strong>
+        <small>${escapeHtml(entry.vehicle)} / ${escapeHtml(getCategoryLabel(entry.category))} / ${escapeHtml(formatDate(entry.date))}</small>
+      </span>
+      ${Number(entry.cost || 0) ? `<b>${money(entry.cost)}</b>` : ""}
     </button>
   `;
 }
@@ -1337,6 +1795,29 @@ function renderSymbolOption(symbol) {
 }
 
 function getDashboardItems() {
+  const taskItems = state.tasks.map((task) => {
+    const priority = normalizePriority(task.priority || "Medium");
+    return {
+      id: task.id,
+      source: "task",
+      sourceLabel: "Tasks",
+      vehicle: task.vehicle,
+      category: "tasks",
+      typeLabel: "Task",
+      title: task.title,
+      status: task.status || "Not Started",
+      statusSymbol: task.status === "Done" ? "done" : priorityWeight(priority) >= 4 ? "urgent" : priorityWeight(priority) >= 3 ? "attention" : "testing",
+      statusLabel: task.status || "Not Started",
+      priority,
+      flagged: priorityWeight(priority) >= 4,
+      scheduledDate: task.dueDate || "",
+      scheduledTime: "",
+      durationHours: "",
+      createdDate: task.createdAt || "",
+      notes: task.notes || ""
+    };
+  });
+
   const entryItems = state.entries.map((entry) => ({
     id: entry.id,
     source: "entry",
@@ -1377,7 +1858,7 @@ function getDashboardItems() {
     notes: item.symptoms || item.testsTried || ""
   }));
 
-  return [...entryItems, ...diagnosticItems];
+  return [...taskItems, ...entryItems, ...diagnosticItems];
 }
 
 function getVehicleDashboardSummaries(items) {
@@ -1385,17 +1866,53 @@ function getVehicleDashboardSummaries(items) {
     const vehicleItems = items.filter((item) => item.vehicle === record.name);
     const activeItems = vehicleItems.filter((item) => isActiveItem(item));
     const attentionItems = activeItems.filter((item) => needsAttention(item));
+    const activeTasks = vehicleItems.filter((item) => item.source === "task" && !isDoneItem(item)).sort(compareDashboardItems);
     const scheduledItems = activeItems.filter((item) => item.scheduledDate && !isDoneItem(item)).sort(compareSchedule);
+    const nextItem = activeTasks[0] || scheduledItems[0] || attentionItems.sort(compareDashboardItems)[0];
 
     return {
       record,
       summary: getCostSummary(getVehicleEntries(record.name), getProfile(record.name)),
       attentionCount: attentionItems.length,
+      taskCount: activeTasks.length,
       scheduledCount: scheduledItems.length,
-      nextItem: scheduledItems[0],
-      status: getVehicleStatus(activeItems)
+      currentPriority: getVehicleCurrentPriority(activeItems),
+      nextItem,
+      projectStatus: getProjectStatus(getProfile(record.name).projectStatus)
     };
   });
+}
+
+function getVehicleCurrentPriority(items) {
+  const priority = items
+    .filter((item) => !isDoneItem(item))
+    .sort((a, b) => priorityWeight(b.priority) - priorityWeight(a.priority))[0]?.priority;
+  return normalizePriority(priority || "Low");
+}
+
+function getRecentExpenses() {
+  return state.entries
+    .filter((entry) => Number(entry.cost || 0) > 0)
+    .sort((a, b) => {
+      const dateDiff = String(b.date || "").localeCompare(String(a.date || ""));
+      if (dateDiff) return dateDiff;
+      return String(b.id || "").localeCompare(String(a.id || ""));
+    });
+}
+
+function getRecentActivity() {
+  return [...state.entries].sort((a, b) => {
+    const dateDiff = String(b.date || "").localeCompare(String(a.date || ""));
+    if (dateDiff) return dateDiff;
+    return String(b.id || "").localeCompare(String(a.id || ""));
+  });
+}
+
+function formatDashboardNextMeta(item) {
+  const pieces = [item.typeLabel || item.sourceLabel || "Action"];
+  if (item.status) pieces.push(item.status);
+  if (item.scheduledDate) pieces.push(formatSchedule(item));
+  return pieces.join(" / ");
 }
 
 function getVehicleStatus(items) {
@@ -1514,6 +2031,22 @@ function getStatusSymbol(id) {
   return statusSymbols.find((symbol) => symbol.id === id) || statusSymbols[1];
 }
 
+function getProjectStatus(status) {
+  return projectStatuses.find((item) => item.id === status) || projectStatuses[0];
+}
+
+function normalizePriority(priority) {
+  if (priority === "Urgent") return "Critical";
+  return priorityLevels.some((item) => item.id === priority) ? priority : "Medium";
+}
+
+function defaultExpenseCategoryForCategory(category) {
+  if (category === "maintenance") return "Maintenance";
+  if (category === "upgrades") return "Upgrade";
+  if (category === "repairs" || category === "expense") return "Parts";
+  return "Other";
+}
+
 function renderStatusSymbolOptions(selected = "attention") {
   return statusSymbols
     .map((symbol) => `<option value="${escapeAttr(symbol.id)}" ${symbol.id === selected ? "selected" : ""}>${escapeHtml(symbol.label)}</option>`)
@@ -1521,8 +2054,33 @@ function renderStatusSymbolOptions(selected = "attention") {
 }
 
 function renderPriorityOptions(selected = "Medium") {
+  const priority = normalizePriority(selected);
   return priorityLevels
-    .map((priority) => `<option value="${escapeAttr(priority.id)}" ${priority.id === selected ? "selected" : ""}>${escapeHtml(priority.label)}</option>`)
+    .map((item) => `<option value="${escapeAttr(item.id)}" ${item.id === priority ? "selected" : ""}>${escapeHtml(item.label)}</option>`)
+    .join("");
+}
+
+function renderTaskStatusOptions(selected = "Not Started") {
+  return taskStatuses
+    .map((status) => `<option value="${escapeAttr(status)}" ${status === selected ? "selected" : ""}>${escapeHtml(status)}</option>`)
+    .join("");
+}
+
+function renderProjectStatusOptions(selected = "Running") {
+  return projectStatuses
+    .map((status) => `<option value="${escapeAttr(status.id)}" ${status.id === selected ? "selected" : ""}>${escapeHtml(status.label)}</option>`)
+    .join("");
+}
+
+function renderExpenseCategoryOptions(selected = "Other") {
+  return expenseCategories
+    .map((category) => `<option value="${escapeAttr(category)}" ${category === selected ? "selected" : ""}>${escapeHtml(category)}</option>`)
+    .join("");
+}
+
+function renderVehicleOptions(selected = selectedVehicle) {
+  return state.vehicles
+    .map((record) => `<option value="${escapeAttr(record.name)}" ${record.name === selected ? "selected" : ""}>${escapeHtml(record.name)}</option>`)
     .join("");
 }
 
@@ -1594,6 +2152,7 @@ function formatTime(time) {
 
 function defaultSymbolForCategory(category) {
   if (category === "repairs") return "attention";
+  if (category === "expense") return "cost";
   if (category === "upgrades") return "electrical";
   if (category === "notes") return "note";
   if (category === "costs") return "cost";
@@ -1708,6 +2267,13 @@ function renderVehicles() {
               <span>Type</span>
               <select name="profileType">
                 ${vehicleTypeOptions.map((type) => `<option value="${escapeAttr(type)}">${escapeHtml(type)}</option>`).join("")}
+              </select>
+            </label>
+
+            <label>
+              <span>Status</span>
+              <select name="projectStatus">
+                ${renderProjectStatusOptions("Running")}
               </select>
             </label>
 
@@ -1859,6 +2425,13 @@ function renderEntryDetail() {
           </label>
 
           <label>
+            <span>Expense category</span>
+            <select name="expenseCategory">
+              ${renderExpenseCategoryOptions(entry.expenseCategory || defaultExpenseCategoryForCategory(entry.category))}
+            </select>
+          </label>
+
+          <label>
             <span>Date</span>
             <input name="date" type="date" value="${escapeAttr(entry.date || today())}" required />
           </label>
@@ -1923,6 +2496,7 @@ function renderEntryDetail() {
             <div class="entry-summary-rows">
               <div><span>Vehicle</span><strong>${escapeHtml(entry.vehicle)}</strong></div>
               <div><span>Category</span><strong>${escapeHtml(getCategoryLabel(entry.category))}</strong></div>
+              <div><span>Expense type</span><strong>${escapeHtml(entry.expenseCategory || defaultExpenseCategoryForCategory(entry.category))}</strong></div>
               <div><span>Priority</span><strong>${escapeHtml(entry.priority || "Medium")}</strong></div>
               <div><span>Dashboard</span><strong>${entry.flagged ? "Flagged" : "Not flagged"}</strong></div>
             </div>
@@ -2133,6 +2707,19 @@ function renderProfileField(field, value) {
   const wideClass = field.wide ? " field-wide" : "";
   const escapedValue = escapeAttr(value);
   const moneyAttrs = field.money ? ' min="0" step="0.01"' : "";
+  if (field.type === "select") {
+    return `
+      <label class="${wideClass.trim()}">
+        <span>${field.label}</span>
+        <select name="${field.key}">
+          ${field.options
+            .map((option) => `<option value="${escapeAttr(option.value)}" ${option.value === value ? "selected" : ""}>${escapeHtml(option.label)}</option>`)
+            .join("")}
+        </select>
+      </label>
+    `;
+  }
+
   if (field.type === "textarea") {
     return `
       <label class="${wideClass.trim()}">
@@ -2221,10 +2808,17 @@ function renderEmptyDiagnostics() {
 
 function profileFieldsFor(vehicle) {
   const profileType = getProfile(vehicle).profileType || getVehicleRecord(vehicle).type;
+  const statusField = {
+    key: "projectStatus",
+    label: "Status",
+    type: "select",
+    options: projectStatuses.map((status) => ({ value: status.id, label: status.label }))
+  };
 
   if (profileType === "Boat") {
     return [
       { key: "profileType", label: "Type" },
+      statusField,
       { key: "year", label: "Year" },
       { key: "make", label: "Boat make" },
       { key: "model", label: "Boat model" },
@@ -2244,6 +2838,7 @@ function profileFieldsFor(vehicle) {
   if (["Motorcycle", "Dirt Bike", "Side-by-side", "ATV"].includes(profileType)) {
     return [
       { key: "profileType", label: "Type" },
+      statusField,
       { key: "year", label: "Year" },
       { key: "make", label: "Make" },
       { key: "model", label: "Model" },
@@ -2264,6 +2859,7 @@ function profileFieldsFor(vehicle) {
   if (profileType === "Trailer") {
     return [
       { key: "profileType", label: "Type" },
+      statusField,
       { key: "year", label: "Year" },
       { key: "make", label: "Make" },
       { key: "model", label: "Model" },
@@ -2280,6 +2876,7 @@ function profileFieldsFor(vehicle) {
 
   return [
     { key: "profileType", label: "Type" },
+    statusField,
     { key: "year", label: "Year" },
     { key: "make", label: "Make" },
     { key: "model", label: "Model" },
@@ -2327,6 +2924,7 @@ function renderEntries(entries) {
           </div>
           ${entry.notes ? `<p class="entry-note">${escapeHtml(entry.notes)}</p>` : ""}
           ${renderEntryStatusLine(entry)}
+          ${Number(entry.cost || 0) ? `<div class="expense-chip">${escapeHtml(entry.expenseCategory || defaultExpenseCategoryForCategory(entry.category))}</div>` : ""}
           <div class="entry-date">${formatDate(entry.date)}</div>
         </div>
         <div class="entry-cost">${money(entry.cost)}</div>
@@ -2386,7 +2984,7 @@ function renderCosts(entries, summary = getCostSummary(entries, getProfile(selec
     </div>
   `;
 
-  const rows = ["maintenance", "repairs", "upgrades", "notes"].map((category) => {
+  const rows = ["maintenance", "repairs", "expense", "upgrades", "notes"].map((category) => {
     const value = sumCost(entries.filter((entry) => entry.category === category));
     return `
       <div class="breakdown-row">

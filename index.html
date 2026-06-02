@@ -53,6 +53,12 @@
 
         <div class="content-grid" id="logbookView">
           <section class="log-panel" aria-labelledby="entryFormTitle">
+            <div class="log-command-row">
+              <button class="secondary-action-button" id="toggleEntryForm" type="button">
+                + Add Timeline Entry
+              </button>
+            </div>
+
             <form class="entry-form" id="entryForm">
               <div class="form-title">
                 <h3 id="entryFormTitle">Add entry</h3>
@@ -64,6 +70,7 @@
                 <select id="categoryInput" required>
                   <option value="maintenance">Maintenance</option>
                   <option value="repairs">Repairs</option>
+                  <option value="expense">Expense</option>
                   <option value="upgrades">Upgrades</option>
                   <option value="notes">Notes</option>
                 </select>
@@ -77,6 +84,11 @@
               <label>
                 <span>Cost</span>
                 <input id="costInput" type="number" min="0" step="0.01" placeholder="0.00" />
+              </label>
+
+              <label>
+                <span>Expense category</span>
+                <select id="expenseCategoryInput"></select>
               </label>
 
               <label>
@@ -132,7 +144,7 @@
 
             <div class="log-heading">
               <div>
-                <p class="label">Activity log</p>
+                <p class="label">Activity timeline</p>
                 <h3 id="logTitle">All entries</h3>
               </div>
               <span id="visibleCount">0 shown</span>
@@ -165,6 +177,7 @@
         <section class="feature-panel is-hidden" id="entryDetailView" aria-label="Entry detail"></section>
         <section class="feature-panel is-hidden" id="profileView" aria-label="Vehicle profile"></section>
         <section class="feature-panel is-hidden" id="diagnosticsView" aria-label="Diagnostics"></section>
+        <section class="quick-add-modal" id="quickAddModal" aria-hidden="true"></section>
       </main>
     </div>
 
