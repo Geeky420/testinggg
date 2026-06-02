@@ -88,14 +88,14 @@ const typeThemes = {
 };
 
 const workspaceViews = [
-  { id: "dashboard", label: "Dashboard", icon: "dashboard" },
-  { id: "logbook", label: "Logbook", icon: "list" },
-  { id: "profile", label: "Vehicle Profile", icon: "profile" },
+  { id: "dashboard", label: "Garage Overview", icon: "dashboard" },
+  { id: "logbook", label: "Vehicle Dashboard", icon: "list" },
+  { id: "profile", label: "Profile", icon: "profile" },
   { id: "diagnostics", label: "Diagnostics", icon: "activity" }
 ];
 
 const categories = [
-  { id: "all", label: "All", icon: "list" },
+  { id: "all", label: "Overview", icon: "dashboard" },
   { id: "maintenance", label: "Maintenance", icon: "wrench" },
   { id: "repairs", label: "Repairs", icon: "alert" },
   { id: "expense", label: "Expense", icon: "receipt" },
@@ -375,10 +375,15 @@ const els = {
   entryDetailView: document.querySelector("#entryDetailView"),
   profileView: document.querySelector("#profileView"),
   diagnosticsView: document.querySelector("#diagnosticsView"),
+  vehicleHeader: document.querySelector("#vehicleHeader"),
+  headerContextLabel: document.querySelector("#headerContextLabel"),
   vehicleTitle: document.querySelector("#vehicleTitle"),
   headerTotalLabel: document.querySelector("#headerTotalLabel"),
   headerTotal: document.querySelector("#headerTotal"),
+  headerSecondaryLabel: document.querySelector("#headerSecondaryLabel"),
   headerEntries: document.querySelector("#headerEntries"),
+  headerIssues: document.querySelector("#headerIssues"),
+  headerUpgrades: document.querySelector("#headerUpgrades"),
   activeVehicleLabel: document.querySelector("#activeVehicleLabel"),
   entryForm: document.querySelector("#entryForm"),
   categoryInput: document.querySelector("#categoryInput"),
@@ -407,7 +412,8 @@ const els = {
   noteList: document.querySelector("#noteList"),
   themeToggle: document.querySelector("#themeToggle"),
   themeLabel: document.querySelector("#themeLabel"),
-  quickAddModal: document.querySelector("#quickAddModal")
+  quickAddModal: document.querySelector("#quickAddModal"),
+  floatingQuickAdd: document.querySelector("#floatingQuickAdd")
 };
 
 init();
@@ -530,6 +536,12 @@ function init() {
     renderEntryFormState();
   });
 
+  els.floatingQuickAdd.addEventListener("click", () => {
+    quickAddOpen = true;
+    quickAddMode = "";
+    renderQuickAddModal();
+  });
+
   els.dashboardView.addEventListener("click", (event) => {
     const quickAdd = event.target.closest("[data-open-quick-add]");
     if (quickAdd) {
@@ -550,6 +562,8 @@ function init() {
       selectedEntryId = "";
       if (item.dataset.dashboardSource === "task") {
         activeView = "dashboard";
+      } else if (item.dataset.dashboardSource === "profile") {
+        activeView = "profile";
       } else {
         activeView = "diagnostics";
         activeFilter = item.dataset.dashboardCategory || "all";
@@ -565,7 +579,10 @@ function init() {
     if (!target) return;
     selectedVehicle = target.dataset.dashboardVehicle;
     selectedEntryId = "";
+    activeView = "logbook";
+    activeFilter = "all";
     state.selectedVehicle = selectedVehicle;
+    state.activeView = activeView;
     saveState();
     render();
   });
@@ -760,7 +777,7 @@ function loadState() {
     tasks: normalizeTasks(seedTasks),
     profiles: mergeProfiles(),
     diagnostics: normalizeDiagnostics(seedDiagnostics),
-    theme: "day",
+    theme: "night",
     costMode: "logged",
     activeView: "dashboard"
   };
@@ -1466,15 +1483,27 @@ function render() {
   const shownEntries = filterEntries(vehicleEntries, activeFilter);
   const costSummary = getCostSummary(vehicleEntries, getProfile(selectedVehicle));
   const costDisplay = getCostDisplay(costSummary);
+  const dashboardData = getDashboardData();
+  const selectedSummary = dashboardData.vehicleSummaries.find((vehicle) => vehicle.record.name === selectedVehicle) || getVehicleDashboardSummaries(getDashboardItems()).find((vehicle) => vehicle.record.name === selectedVehicle);
+  const isGarageOverview = activeView === "dashboard";
 
   applyVehicleTheme(selectedVehicle);
   els.garageSummary.textContent = `${state.vehicles.length} ${state.vehicles.length === 1 ? "toy" : "toys"} tracked`;
-  els.vehicleTitle.textContent = selectedVehicle;
-  els.headerTotalLabel.textContent = costDisplay.header;
-  els.headerTotal.textContent = money(costDisplay.value);
-  els.headerEntries.textContent = String(vehicleEntries.length);
+  els.vehicleHeader.classList.toggle("overview-header", isGarageOverview);
+  els.vehicleHeader.classList.toggle("vehicle-detail-hero", !isGarageOverview);
+  els.vehicleHeader.style = isGarageOverview ? "" : vehicleCardBackgroundStyle(selectedVehicle);
+  els.headerContextLabel.textContent = isGarageOverview ? "Garage OS" : vehicleIdentityLabel(selectedVehicle);
+  els.vehicleTitle.textContent = isGarageOverview ? "Garage Overview" : selectedVehicle;
+  els.headerTotalLabel.textContent = isGarageOverview ? "Total vehicles" : "Total spent";
+  els.headerTotal.textContent = isGarageOverview ? String(state.vehicles.length) : money(costDisplay.value);
+  els.headerSecondaryLabel.textContent = isGarageOverview ? "Open issues" : "Services logged";
+  els.headerEntries.textContent = isGarageOverview ? String(dashboardData.openIssueCount) : String(vehicleEntries.filter((entry) => entry.category === "maintenance").length);
+  els.headerIssues.textContent = isGarageOverview ? String(dashboardData.upcomingMaintenanceCount) : String(selectedSummary?.issueCount || 0);
+  els.headerUpgrades.textContent = isGarageOverview ? String(dashboardData.overdueServices.length) : String(vehicleEntries.filter((entry) => entry.category === "upgrades").length);
+  document.querySelector("#headerIssuesLabel").textContent = isGarageOverview ? "Upcoming" : "Open issues";
+  document.querySelector("#headerUpgradesLabel").textContent = isGarageOverview ? "Overdue" : "Upgrades";
   els.activeVehicleLabel.textContent = selectedVehicle;
-  els.logTitle.textContent = activeFilter === "all" ? "All entries" : getCategoryLabel(activeFilter);
+  els.logTitle.textContent = activeFilter === "all" ? "Vehicle overview" : getCategoryLabel(activeFilter);
   els.visibleCount.textContent = `${shownEntries.length} shown`;
   els.costTitle.textContent = money(costDisplay.value);
   els.costSubtitle.textContent = costDisplay.subtitle;
@@ -1532,49 +1561,50 @@ function renderEntryFormState() {
 
 function renderDashboard() {
   const data = getDashboardData();
-  const priorityItems = data.todayPriorities.slice(0, 3);
+  const attentionItems = data.needsAttention.slice(0, 5);
   const recentExpenses = data.recentExpenses.slice(0, 5);
   const recentActivity = data.recentActivity.slice(0, 5);
 
   els.dashboardView.innerHTML = `
-    <div class="feature-heading dashboard-heading command-heading">
+    <div class="garage-overview-hero">
       <div>
-        <p class="label">Geeky Garage command center</p>
-        <h3>What needs attention right now</h3>
+        <p class="label">Command queue</p>
+        <h3>Next actions, not noise</h3>
+        <span>Use Quick Add when work happens, then let the overview surface what matters.</span>
       </div>
       <button class="save-button quick-add-button" type="button" data-open-quick-add>${icon("plus")} Quick Add</button>
     </div>
 
-    <section class="today-priority-panel" aria-label="Today's priorities">
+    <section class="dashboard-stat-grid os-stat-grid" aria-label="Garage overview totals">
+      ${renderDashboardStat("Total Vehicles", String(state.vehicles.length), "Garage projects tracked", "car")}
+      ${renderDashboardStat("Open Issues", String(data.openIssueCount), "Repairs, diagnostics, priority work", "alert", data.openIssueCount ? "warning" : "good")}
+      ${renderDashboardStat("Upcoming Maintenance", String(data.upcomingMaintenanceCount), "Scheduled in the next 30 days", "calendar")}
+      ${renderDashboardStat("Overdue Services", String(data.overdueServices.length), "Past due scheduled work", "clock", data.overdueServices.length ? "warning" : "good")}
+      ${renderDashboardStat("Total Maintenance Cost", money(data.totals.maintenanceCost), "Logged maintenance spend", "receipt")}
+    </section>
+
+    <section class="needs-attention-panel" aria-label="Needs attention">
       <div class="panel-heading">
         <div>
-          <p class="label">Today's priorities</p>
-          <h4>Top 3 urgent tasks</h4>
+          <p class="label">Needs Attention</p>
+          <h4>Highest signal items</h4>
         </div>
-        <span>${data.todayPriorities.length} active</span>
+        <span>${data.needsAttention.length} active</span>
       </div>
-      <div class="priority-stack">
+      <div class="attention-grid">
         ${
-          priorityItems.length
-            ? priorityItems.map(renderCommandPriorityItem).join("")
-            : `<div class="empty-state compact-dashboard">No high priority tasks yet. Use Quick Add to create your next action.</div>`
+          attentionItems.length
+            ? attentionItems.map(renderNeedsAttentionItem).join("")
+            : `<div class="empty-state compact-dashboard">Everything looks calm. Add mileage, due dates, and tasks to keep this useful.</div>`
         }
       </div>
     </section>
 
-    <section class="dashboard-stat-grid" aria-label="Garage totals">
-      ${renderDashboardStat("Total invested", money(data.totals.totalInvested), "Price paid + logged work", "receipt")}
-      ${renderDashboardStat("Open tasks", String(data.openTasks.length), "Not started or in progress", "list")}
-      ${renderDashboardStat("Critical / High", String(data.urgentTaskCount), "Dashboard surfaced first", "alert", data.urgentTaskCount ? "warning" : "good")}
-      ${renderDashboardStat("Recent spend", money(data.recentExpenseTotal), "Last 5 expenses", "receipt")}
-      ${renderDashboardStat("Vehicles", String(state.vehicles.length), "Projects in garage", "car")}
-    </section>
-
-    <section class="dashboard-panel vehicle-dashboard-panel command-vehicle-panel" aria-label="Vehicle command cards">
+    <section class="dashboard-panel vehicle-dashboard-panel command-vehicle-panel" aria-label="Vehicle cards">
         <div class="panel-heading">
           <div>
-            <p class="label">Vehicles / projects</p>
-            <h4>Command cards</h4>
+            <p class="label">Fleet view</p>
+            <h4>Vehicles & projects</h4>
           </div>
           <span>${state.vehicles.length} tracked</span>
         </div>
@@ -1587,7 +1617,7 @@ function renderDashboard() {
       <section class="dashboard-panel expense-panel" aria-label="Recent expenses">
         <div class="panel-heading">
           <div>
-            <p class="label">Expense tracking</p>
+            <p class="label">Cost center</p>
             <h4>Recent expenses</h4>
           </div>
           <span>${money(data.recentExpenseTotal)}</span>
@@ -1604,7 +1634,7 @@ function renderDashboard() {
       <section class="dashboard-panel activity-panel" aria-label="Recent activity">
         <div class="panel-heading">
           <div>
-            <p class="label">Activity timeline</p>
+            <p class="label">Shop log</p>
             <h4>Latest history</h4>
           </div>
           <span>${state.entries.length} entries</span>
@@ -1632,6 +1662,13 @@ function getDashboardData() {
   const vehicleSummaries = getVehicleDashboardSummaries(items);
   const recentExpenses = getRecentExpenses();
   const recentActivity = getRecentActivity();
+  const overdueServices = activeItems.filter((item) => isOverdue(item)).sort(compareSchedule);
+  const upcomingMaintenance = activeItems.filter((item) => isUpcomingMaintenance(item)).sort(compareSchedule);
+  const openIssues = activeItems.filter((item) => isIssueItem(item)).sort(compareDashboardItems);
+  const missingInfoItems = getMissingInfoAttentionItems(vehicleSummaries);
+  const needsAttentionItems = [...overdueServices, ...openIssues, ...missingInfoItems, ...attentionItems]
+    .filter(uniqueAttentionItem)
+    .sort(compareAttentionItems);
 
   const totals = vehicleSummaries.reduce(
     (total, vehicle) => {
@@ -1639,9 +1676,10 @@ function getDashboardData() {
       total.pricePaid += vehicle.summary.pricePaid;
       total.sellValue += vehicle.summary.sellValue;
       total.totalInvested += vehicle.summary.totalInvested;
+      total.maintenanceCost += vehicle.summary.maintenanceCost;
       return total;
     },
-    { loggedTotal: 0, pricePaid: 0, sellValue: 0, totalInvested: 0 }
+    { loggedTotal: 0, pricePaid: 0, sellValue: 0, totalInvested: 0, maintenanceCost: 0 }
   );
 
   return {
@@ -1651,6 +1689,10 @@ function getDashboardData() {
     todayPriorities,
     urgentTaskCount: priorityTasks.length,
     attentionItems,
+    needsAttention: needsAttentionItems,
+    openIssueCount: openIssues.length,
+    upcomingMaintenanceCount: upcomingMaintenance.length,
+    overdueServices,
     scheduledItems,
     vehicleSummaries,
     recentExpenses,
@@ -1673,33 +1715,102 @@ function renderDashboardStat(label, value, meta, iconName, tone = "") {
   `;
 }
 
+function uniqueAttentionItem(item, index, list) {
+  const key = `${item.source || "entry"}:${item.id}`;
+  return list.findIndex((candidate) => `${candidate.source || "entry"}:${candidate.id}` === key) === index;
+}
+
+function compareAttentionItems(a, b) {
+  const overdueDiff = Number(isOverdue(b)) - Number(isOverdue(a));
+  if (overdueDiff) return overdueDiff;
+  return compareDashboardItems(a, b);
+}
+
+function isUpcomingMaintenance(item) {
+  if (!item.scheduledDate || isDoneItem(item) || isOverdue(item)) return false;
+  const days = scheduleDaysUntil(item.scheduledDate);
+  return days <= 30 && (item.category === "maintenance" || item.typeLabel === "Task");
+}
+
+function isIssueItem(item) {
+  if (isDoneItem(item)) return false;
+  if (item.source === "diagnostic") return true;
+  if (item.category === "repairs") return true;
+  return item.source === "task" && priorityWeight(item.priority) >= 3;
+}
+
+function getMissingInfoAttentionItems(vehicleSummaries) {
+  return vehicleSummaries
+    .filter((vehicle) => vehicle.missingInfo.length)
+    .map((vehicle) => ({
+      id: `profile-${slugify(vehicle.record.name)}-missing-info`,
+      source: "profile",
+      sourceLabel: "Profile",
+      vehicle: vehicle.record.name,
+      category: "profile",
+      typeLabel: "Missing info",
+      title: `Add ${vehicle.missingInfo.join(", ")} for ${vehicle.record.name}`,
+      status: "Open",
+      statusSymbol: "attention",
+      statusLabel: "Profile incomplete",
+      priority: vehicle.missingInfo.includes("mileage") ? "High" : "Medium",
+      flagged: true,
+      scheduledDate: "",
+      scheduledTime: "",
+      durationHours: "",
+      createdDate: "",
+      notes: ""
+    }));
+}
+
 function renderVehicleStatusCard(vehicle) {
-  const status = vehicle.projectStatus;
-  const nextTitle = vehicle.nextItem?.title || "Add next task/action";
-  const nextMeta = vehicle.nextItem ? formatDashboardNextMeta(vehicle.nextItem) : "Nothing urgent logged";
+  const health = vehicle.health;
+  const nextTitle = vehicle.nextService ? formatSchedule(vehicle.nextService) : "No service date set";
+  const nextMeta = vehicle.nextService?.title || "Add a due date in maintenance or tasks";
 
   return `
-    <button class="vehicle-status-card ${vehicle.record.name === selectedVehicle ? "active" : ""}" type="button" data-dashboard-vehicle="${escapeAttr(vehicle.record.name)}" style="${vehicleThemeStyle(vehicle.record.name)}">
+    <button class="vehicle-status-card garage-vehicle-card ${vehicle.record.name === selectedVehicle ? "active" : ""}" type="button" data-dashboard-vehicle="${escapeAttr(vehicle.record.name)}" style="${vehicleThemeStyle(vehicle.record.name)}">
+      <span class="garage-vehicle-media" style="${escapeAttr(vehicleCardBackgroundStyle(vehicle.record.name))}">
+        ${!vehicle.profile.photoDataUrl ? icon(typeIcon(vehicle.record.type)) : ""}
+      </span>
       <span class="vehicle-status-main">
-        <span class="vehicle-status-symbol" style="--status-color: ${status.color}">${icon(status.icon)}</span>
         <span>
           <strong>${escapeHtml(vehicle.record.name)}</strong>
-          <small>${escapeHtml(vehicle.record.type || "Vehicle")}</small>
+          <small>${escapeHtml(vehicle.identity || vehicle.record.type || "Vehicle")}</small>
         </span>
       </span>
       <span class="vehicle-card-badges">
-        <span class="project-status-badge" style="--status-color: ${status.color}">${icon(status.icon)} ${escapeHtml(status.label)}</span>
+        <span class="project-status-badge health-${escapeAttr(slugify(health.label))}" style="--status-color: ${health.color}">${icon(health.icon)} ${escapeHtml(health.label)}</span>
         ${renderPriorityPill({ priority: vehicle.currentPriority })}
       </span>
+      <span class="vehicle-card-mini-grid">
+        <span><small>Mileage</small><strong>${escapeHtml(vehicle.mileage || "Missing")}</strong></span>
+        <span><small>Issues</small><strong>${vehicle.issueCount}</strong></span>
+      </span>
       <span class="vehicle-next-task">
-        <small>Next action</small>
+        <small>Next service due</small>
         <strong>${escapeHtml(nextTitle)}</strong>
         <span>${escapeHtml(nextMeta)}</span>
       </span>
-      <span class="vehicle-status-money">${money(vehicle.summary.totalInvested)}</span>
-      <span class="vehicle-status-meta">
-        ${vehicle.taskCount} open tasks / ${vehicle.attentionCount} attention
+      <span class="vehicle-card-footer">
+        <span>${money(vehicle.summary.totalInvested)} invested</span>
+        <strong>View Vehicle</strong>
       </span>
+    </button>
+  `;
+}
+
+function renderNeedsAttentionItem(item) {
+  const symbol = getStatusSymbol(item.statusSymbol || "attention");
+  return `
+    <button class="attention-card ${escapeAttr(item.source || "entry")}" type="button" data-dashboard-item="${escapeAttr(item.id)}" data-dashboard-source="${escapeAttr(item.source || "profile")}" data-dashboard-vehicle="${escapeAttr(item.vehicle)}" data-dashboard-category="${escapeAttr(item.category || "all")}">
+      <span class="attention-icon" style="--status-color: ${symbol.color}" aria-hidden="true">${icon(symbol.icon)}</span>
+      <span class="attention-main">
+        <strong>${escapeHtml(item.title)}</strong>
+        <small>${escapeHtml(item.vehicle)} / ${escapeHtml(item.typeLabel || item.sourceLabel || "Attention")}</small>
+        ${item.scheduledDate ? renderScheduleMeta(item) : ""}
+      </span>
+      ${renderPriorityPill({ priority: item.priority || "Medium" })}
     </button>
   `;
 }
@@ -1863,24 +1974,52 @@ function getDashboardItems() {
 
 function getVehicleDashboardSummaries(items) {
   return state.vehicles.map((record) => {
+    const profile = getProfile(record.name);
     const vehicleItems = items.filter((item) => item.vehicle === record.name);
     const activeItems = vehicleItems.filter((item) => isActiveItem(item));
     const attentionItems = activeItems.filter((item) => needsAttention(item));
     const activeTasks = vehicleItems.filter((item) => item.source === "task" && !isDoneItem(item)).sort(compareDashboardItems);
     const scheduledItems = activeItems.filter((item) => item.scheduledDate && !isDoneItem(item)).sort(compareSchedule);
+    const maintenanceItems = activeItems.filter((item) => item.category === "maintenance" && item.scheduledDate && !isDoneItem(item)).sort(compareSchedule);
     const nextItem = activeTasks[0] || scheduledItems[0] || attentionItems.sort(compareDashboardItems)[0];
-
-    return {
+    const issueCount = activeItems.filter((item) => isIssueItem(item)).length;
+    const missingInfo = missingProfileInfo(profile);
+    const summary = getCostSummary(getVehicleEntries(record.name), profile);
+    const status = getProjectStatus(profile.projectStatus);
+    const vehicleSummary = {
       record,
-      summary: getCostSummary(getVehicleEntries(record.name), getProfile(record.name)),
+      profile,
+      identity: vehicleIdentityLabel(record.name),
+      mileage: vehicleMileage(profile),
+      summary,
       attentionCount: attentionItems.length,
       taskCount: activeTasks.length,
+      issueCount,
+      missingInfo,
       scheduledCount: scheduledItems.length,
       currentPriority: getVehicleCurrentPriority(activeItems),
       nextItem,
-      projectStatus: getProjectStatus(getProfile(record.name).projectStatus)
+      nextService: maintenanceItems[0] || scheduledItems[0],
+      projectStatus: status
+    };
+
+    return {
+      ...vehicleSummary,
+      health: getVehicleHealth(vehicleSummary)
     };
   });
+}
+
+function getVehicleHealth(vehicle) {
+  if (vehicle.projectStatus.id === "Broken" || vehicle.projectStatus.id === "Needs Attention" || vehicle.issueCount > 0 || vehicle.attentionCount > 1) {
+    return { label: "Needs Attention", icon: "alert", color: "#fb7185" };
+  }
+
+  if (vehicle.projectStatus.id === "Parked" || vehicle.missingInfo.length || vehicle.taskCount || vehicle.scheduledCount) {
+    return { label: "Watch", icon: "clock", color: "#f59e0b" };
+  }
+
+  return { label: "Healthy", icon: "check", color: "#22c55e" };
 }
 
 function getVehicleCurrentPriority(items) {
@@ -2913,19 +3052,26 @@ function renderEntries(entries) {
     return;
   }
 
-  els.entryList.innerHTML = entries
+  els.entryList.innerHTML = `<div class="history-timeline">${entries
     .map((entry) => `
-      <article class="entry-card ${entry.category}" role="button" tabindex="0" data-open-entry="${escapeAttr(entry.id)}" aria-label="Open ${escapeAttr(entry.title)} entry">
-        <div class="entry-icon" aria-hidden="true">${icon(categoryIcon(entry.category))}</div>
+      <article class="entry-card timeline-entry-card ${entry.category}" role="button" tabindex="0" data-open-entry="${escapeAttr(entry.id)}" aria-label="Open ${escapeAttr(entry.title)} entry">
+        <div class="timeline-date-node" aria-hidden="true">
+          <span>${escapeHtml(formatDateShort(entry.date))}</span>
+          <b>${icon(categoryIcon(entry.category))}</b>
+        </div>
         <div class="entry-main">
           <div class="entry-topline">
             <span class="entry-title">${escapeHtml(entry.title)}</span>
             <span class="entry-chip">${getCategoryLabel(entry.category)}</span>
           </div>
+          <div class="entry-meta-row">
+            <span>${escapeHtml(vehicleMileage(getProfile(entry.vehicle)) || "Mileage missing")}</span>
+            <span>${escapeHtml(entry.status || "Logged")}</span>
+            ${entry.scheduledDate ? `<span>${escapeHtml(formatSchedule(entry))}</span>` : ""}
+          </div>
           ${entry.notes ? `<p class="entry-note">${escapeHtml(entry.notes)}</p>` : ""}
           ${renderEntryStatusLine(entry)}
           ${Number(entry.cost || 0) ? `<div class="expense-chip">${escapeHtml(entry.expenseCategory || defaultExpenseCategoryForCategory(entry.category))}</div>` : ""}
-          <div class="entry-date">${formatDate(entry.date)}</div>
         </div>
         <div class="entry-cost">${money(entry.cost)}</div>
         <button class="icon-button" type="button" data-delete="${escapeAttr(entry.id)}" aria-label="Delete ${escapeAttr(entry.title)}">
@@ -2933,7 +3079,7 @@ function renderEntries(entries) {
         </button>
       </article>
     `)
-    .join("");
+    .join("")}</div>`;
 }
 
 function renderEntryStatusLine(entry) {
@@ -3050,6 +3196,22 @@ function vehicleDescriptor(vehicle) {
   return [profile.year, profile.make, profile.model || vehicle].filter(Boolean).join(" ").trim();
 }
 
+function vehicleIdentityLabel(vehicle) {
+  const record = getVehicleRecord(vehicle);
+  return vehicleDescriptor(vehicle) || record.type || "Vehicle";
+}
+
+function vehicleMileage(profile) {
+  return String(profile.mileage || profile.mileageHours || "").trim();
+}
+
+function missingProfileInfo(profile) {
+  const missing = [];
+  if (!vehicleMileage(profile)) missing.push("mileage");
+  if (!profile.year || !profile.make || !profile.model) missing.push("year/make/model");
+  return missing;
+}
+
 function getVehicleRecord(vehicle) {
   return state.vehicles.find((item) => item.name === vehicle) || { name: vehicle, type: getProfile(vehicle).profileType || "Automotive" };
 }
@@ -3111,12 +3273,14 @@ function filterEntries(entries, filter) {
 
 function getCostSummary(entries, profile) {
   const loggedTotal = sumCost(entries);
+  const maintenanceCost = sumCost(entries.filter((entry) => entry.category === "maintenance"));
   const pricePaid = moneyNumber(profile.pricePaid);
   const sellValue = moneyNumber(profile.sellValue);
   const totalInvested = pricePaid + loggedTotal;
 
   return {
     loggedTotal,
+    maintenanceCost,
     pricePaid,
     sellValue,
     totalInvested,
@@ -3160,6 +3324,15 @@ function formatDate(date) {
     month: "short",
     day: "numeric",
     year: "numeric"
+  }).format(parsed);
+}
+
+function formatDateShort(date) {
+  if (!date) return "No date";
+  const parsed = new Date(`${date}T12:00:00`);
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric"
   }).format(parsed);
 }
 

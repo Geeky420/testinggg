@@ -28,9 +28,9 @@
       </aside>
 
       <main class="workspace">
-        <header class="vehicle-header">
+        <header class="vehicle-header" id="vehicleHeader">
           <div>
-            <p class="label">Selected vehicle</p>
+            <p class="label" id="headerContextLabel">Selected vehicle</p>
             <h2 id="vehicleTitle">Yukon</h2>
           </div>
           <div class="header-stats" aria-label="Vehicle totals">
@@ -39,8 +39,16 @@
               <strong id="headerTotal">$0.00</strong>
             </div>
             <div>
-              <span>Entries</span>
+              <span id="headerSecondaryLabel">Entries</span>
               <strong id="headerEntries">0</strong>
+            </div>
+            <div>
+              <span id="headerIssuesLabel">Open issues</span>
+              <strong id="headerIssues">0</strong>
+            </div>
+            <div>
+              <span id="headerUpgradesLabel">Upgrades</span>
+              <strong id="headerUpgrades">0</strong>
             </div>
           </div>
         </header>
@@ -178,6 +186,9 @@
         <section class="feature-panel is-hidden" id="profileView" aria-label="Vehicle profile"></section>
         <section class="feature-panel is-hidden" id="diagnosticsView" aria-label="Diagnostics"></section>
         <section class="quick-add-modal" id="quickAddModal" aria-hidden="true"></section>
+        <button class="floating-add-button" id="floatingQuickAdd" type="button" aria-label="Quick Add">
+          +
+        </button>
       </main>
     </div>
 
