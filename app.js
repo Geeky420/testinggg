@@ -90,6 +90,13 @@ const typeThemes = {
 const workspaceViews = [
   { id: "dashboard", label: "Garage Overview", icon: "dashboard" },
   { id: "logbook", label: "Vehicle Dashboard", icon: "list" },
+  { id: "repairBoard", label: "Repair Board", icon: "wrench" },
+  { id: "parts", label: "Parts", icon: "tag" },
+  { id: "inventory", label: "Inventory", icon: "box" },
+  { id: "inspections", label: "Inspections", icon: "check" },
+  { id: "restock", label: "Restock", icon: "cart" },
+  { id: "expenses", label: "Expenses", icon: "receipt" },
+  { id: "scheduler", label: "Scheduler", icon: "calendar" },
   { id: "profile", label: "Profile", icon: "profile" },
   { id: "diagnostics", label: "Diagnostics", icon: "activity" }
 ];
@@ -135,6 +142,32 @@ const priorityLevels = [
 const diagnosticStatuses = ["Open", "Watching", "Waiting on parts", "Scheduled", "Done"];
 const entryStatuses = ["Logged", "Open", "Scheduled", "Watching", "Waiting on parts", "Done"];
 const taskStatuses = ["Not Started", "In Progress", "Done"];
+const repairJobStatuses = ["Idea / Concern", "Diagnosing", "Parts Needed", "Parts Ordered", "Ready to Repair", "In Progress", "Completed"];
+const partStatuses = ["Researching", "Needed", "Ordered", "Received", "Installed"];
+const inventoryCategories = [
+  "Oils & Fluids",
+  "Grease & Lubricants",
+  "Filters",
+  "Hardware",
+  "Gloves & Shop Supplies",
+  "Cleaners",
+  "Tools",
+  "Spare Parts",
+  "Electrical Supplies",
+  "Miscellaneous"
+];
+const inspectionTemplates = [
+  "Pre-Purchase Inspection",
+  "Oil Change Inspection",
+  "Brake Inspection",
+  "Suspension Inspection",
+  "Electrical Diagnosis",
+  "No-Start Diagnosis",
+  "AC Diagnosis",
+  "Road Trip Inspection"
+];
+const inspectionResults = ["Pass", "Monitor", "Fail"];
+const maintenanceIntervalModes = ["Mileage", "Date", "Both"];
 const projectStatuses = [
   { id: "Running", label: "Running", icon: "check", color: "#16a34a" },
   { id: "Needs Attention", label: "Needs Attention", icon: "alert", color: "#f97316" },
@@ -142,7 +175,8 @@ const projectStatuses = [
   { id: "Parked", label: "Parked", icon: "clock", color: "#64748b" },
   { id: "Ready", label: "Ready", icon: "check", color: "#22c55e" }
 ];
-const expenseCategories = ["Parts", "Labor", "Maintenance", "Upgrade", "Other"];
+const expenseCategories = ["Parts", "Labor", "Maintenance", "Upgrade", "Tools", "Fluids", "Repairs", "Vehicle Purchase", "Registration", "Insurance", "Other"];
+const notificationPrepTypes = ["Low Inventory Alerts", "Maintenance Due Alerts", "Scheduled Repair Reminders", "Parts Arrival Reminders"];
 
 const storageKey = "geeky-garage-state-v1";
 
@@ -353,6 +387,215 @@ const seedDiagnostics = [
   }
 ];
 
+const seedRepairJobs = [
+  {
+    id: "job-yukon-electrical",
+    vehicle: "Yukon",
+    title: "Yukon Electrical Issue",
+    priority: "Critical",
+    status: "Diagnosing",
+    scheduledDate: "2026-06-02",
+    scheduledTime: "18:00",
+    estimatedHours: "2",
+    estimatedCost: 125,
+    partsStatus: "Needed",
+    symptoms: "Dash came back when OBD scanner plugged in.",
+    testingPerformed: "Confirm battery voltage, DLC power and grounds, body grounds, and cluster feeds.",
+    results: "Scanner wake-up points toward power, ground, or communication circuit behavior.",
+    suspectedCauses: "Weak ground, DLC feed issue, cluster feed, or module communication problem.",
+    finalDiagnosis: "",
+    stepsPerformed: "",
+    notes: "Keep this open while testing so notes stay attached to the job.",
+    photos: "",
+    videoPlaceholder: "",
+    partsCost: 38.44,
+    laborValue: 0,
+    resolution: "",
+    lessonsLearned: "",
+    finalNotes: "",
+    inventoryNeeds: [
+      { inventoryId: "inv-electrical-connectors", quantity: 1 },
+      { inventoryId: "inv-shop-gloves", quantity: 1 }
+    ],
+    inventoryDeducted: false,
+    createdAt: "2026-05-30",
+    completedAt: ""
+  },
+  {
+    id: "job-boat-electronics",
+    vehicle: "Boat",
+    title: "Boat Electronics Install",
+    priority: "High",
+    status: "Parts Ordered",
+    scheduledDate: "",
+    scheduledTime: "",
+    estimatedHours: "4",
+    estimatedCost: 642.11,
+    partsStatus: "Ordered",
+    symptoms: "Electronics refresh planned.",
+    testingPerformed: "Bench test before install.",
+    results: "",
+    suspectedCauses: "",
+    finalDiagnosis: "",
+    stepsPerformed: "",
+    notes: "Verify power, screen, wiring path, and waterproof connections before mounting.",
+    photos: "",
+    videoPlaceholder: "",
+    partsCost: 642.11,
+    laborValue: 0,
+    resolution: "",
+    lessonsLearned: "",
+    finalNotes: "",
+    inventoryNeeds: [],
+    inventoryDeducted: false,
+    createdAt: "2026-05-12",
+    completedAt: ""
+  }
+];
+
+const seedParts = [
+  {
+    id: "part-yukon-ground-straps",
+    vehicle: "Yukon",
+    name: "Ground straps",
+    partNumber: "",
+    vendor: "Local parts store",
+    price: 38.44,
+    link: "",
+    quantity: 1,
+    status: "Needed",
+    notes: "For electrical diagnosis and ground refresh."
+  },
+  {
+    id: "part-boat-electronics-kit",
+    vehicle: "Boat",
+    name: "Electronics wiring kit",
+    partNumber: "",
+    vendor: "Marine supplier",
+    price: 642.11,
+    link: "",
+    quantity: 1,
+    status: "Ordered",
+    notes: "Bench test before install."
+  }
+];
+
+const seedInventory = [
+  {
+    id: "inv-5w30-oil",
+    name: "5W-30 engine oil",
+    category: "Oils & Fluids",
+    quantity: 2,
+    unit: "qt",
+    minimumStock: 5,
+    storageLocation: "Fluid shelf",
+    vehicleCompatibility: "Yukon",
+    preferredVendor: "Auto parts store",
+    restockLink: "",
+    lastPurchasedDate: "2026-05-04",
+    cost: 42,
+    notes: "Keep at least one oil change worth on hand."
+  },
+  {
+    id: "inv-shop-gloves",
+    name: "Nitrile gloves",
+    category: "Gloves & Shop Supplies",
+    quantity: 1,
+    unit: "box",
+    minimumStock: 2,
+    storageLocation: "Bench drawer",
+    vehicleCompatibility: "All",
+    preferredVendor: "Amazon",
+    restockLink: "",
+    lastPurchasedDate: "",
+    cost: 18,
+    notes: "Low stock alert example."
+  },
+  {
+    id: "inv-electrical-connectors",
+    name: "Electrical connector assortment",
+    category: "Electrical Supplies",
+    quantity: 0,
+    unit: "kit",
+    minimumStock: 1,
+    storageLocation: "Electrical bin",
+    vehicleCompatibility: "All",
+    preferredVendor: "Amazon",
+    restockLink: "",
+    lastPurchasedDate: "",
+    cost: 24,
+    notes: "Useful for diagnosis and repairs."
+  },
+  {
+    id: "inv-oil-filter",
+    name: "Oil filter",
+    category: "Filters",
+    quantity: 1,
+    unit: "ea",
+    minimumStock: 1,
+    storageLocation: "Filter shelf",
+    vehicleCompatibility: "Yukon",
+    preferredVendor: "RockAuto",
+    restockLink: "",
+    lastPurchasedDate: "2026-05-04",
+    cost: 12,
+    notes: ""
+  }
+];
+
+const seedInspections = [
+  {
+    id: "inspection-yukon-electrical",
+    vehicle: "Yukon",
+    template: "Electrical Diagnosis",
+    date: "2026-05-30",
+    summary: "Dash returned when OBD scanner was plugged in.",
+    photos: "",
+    items: [
+      { label: "Battery voltage", result: "Monitor", notes: "Confirm resting and cranking voltage." },
+      { label: "DLC power and ground", result: "Monitor", notes: "Verify before deeper diagnosis." },
+      { label: "Body grounds", result: "Monitor", notes: "Inspect and voltage-drop test." }
+    ]
+  }
+];
+
+const seedMaintenanceSchedules = [
+  {
+    id: "schedule-yukon-oil",
+    vehicle: "Yukon",
+    title: "Oil Change",
+    intervalMode: "Both",
+    intervalMileage: 5000,
+    intervalMonths: 6,
+    lastDoneMileage: 154230,
+    lastDoneDate: "2026-05-04",
+    nextDueMileage: 159230,
+    nextDueDate: "2026-11-04",
+    status: "Due Soon",
+    notes: "Track by mileage and date."
+  },
+  {
+    id: "schedule-yukon-transmission",
+    vehicle: "Yukon",
+    title: "Transmission Service",
+    intervalMode: "Both",
+    intervalMileage: 30000,
+    intervalMonths: 36,
+    lastDoneMileage: "",
+    lastDoneDate: "2026-04-18",
+    nextDueMileage: "",
+    nextDueDate: "2029-04-18",
+    status: "Scheduled",
+    notes: "Pan service was logged."
+  }
+];
+
+const defaultNotificationPrep = notificationPrepTypes.map((type) => ({
+  type,
+  enabled: false,
+  visualOnly: true
+}));
+
 let state = loadState();
 let selectedVehicle = state.selectedVehicle || getVehicleNames(state.vehicles)[0] || "Yukon";
 let selectedEntryId = state.selectedEntryId || "";
@@ -364,6 +607,9 @@ let addVehicleModalOpen = false;
 let entryFormOpen = false;
 let quickAddOpen = false;
 let quickAddMode = "";
+let detailModalOpen = false;
+let detailModalType = "";
+let detailModalId = "";
 
 const els = {
   vehicleNav: document.querySelector("#vehicleNav"),
@@ -373,6 +619,13 @@ const els = {
   garageSummary: document.querySelector("#garageSummary"),
   logbookView: document.querySelector("#logbookView"),
   entryDetailView: document.querySelector("#entryDetailView"),
+  repairBoardView: document.querySelector("#repairBoardView"),
+  partsView: document.querySelector("#partsView"),
+  inventoryView: document.querySelector("#inventoryView"),
+  inspectionsView: document.querySelector("#inspectionsView"),
+  restockView: document.querySelector("#restockView"),
+  expensesView: document.querySelector("#expensesView"),
+  schedulerView: document.querySelector("#schedulerView"),
   profileView: document.querySelector("#profileView"),
   diagnosticsView: document.querySelector("#diagnosticsView"),
   vehicleHeader: document.querySelector("#vehicleHeader"),
@@ -413,6 +666,7 @@ const els = {
   themeToggle: document.querySelector("#themeToggle"),
   themeLabel: document.querySelector("#themeLabel"),
   quickAddModal: document.querySelector("#quickAddModal"),
+  detailModal: document.querySelector("#detailModal"),
   floatingQuickAdd: document.querySelector("#floatingQuickAdd")
 };
 
@@ -425,6 +679,12 @@ function init() {
   state.tasks = normalizeTasks(state.tasks, state.vehicles);
   state.profiles = mergeProfiles(state.profiles, state.vehicles);
   state.diagnostics = normalizeDiagnostics(state.diagnostics, state.vehicles);
+  state.repairJobs = normalizeRepairJobs(state.repairJobs, state.vehicles);
+  state.parts = normalizeParts(state.parts, state.vehicles);
+  state.inventory = normalizeInventory(state.inventory);
+  state.inspections = normalizeInspections(state.inspections, state.vehicles);
+  state.maintenanceSchedules = normalizeMaintenanceSchedules(state.maintenanceSchedules, state.vehicles);
+  state.notificationPrep = normalizeNotificationPrep(state.notificationPrep);
   selectedVehicle = getVehicleNames(state.vehicles).includes(selectedVehicle) ? selectedVehicle : getVehicleNames(state.vehicles)[0];
   selectedEntryId = state.entries.some((entry) => entry.id === selectedEntryId) ? selectedEntryId : "";
   const selectedEntry = state.entries.find((entry) => entry.id === selectedEntryId);
@@ -546,7 +806,7 @@ function init() {
     const quickAdd = event.target.closest("[data-open-quick-add]");
     if (quickAdd) {
       quickAddOpen = true;
-      quickAddMode = "";
+      quickAddMode = quickAdd.dataset.openQuickAdd || "";
       renderQuickAddModal();
       return;
     }
@@ -560,7 +820,18 @@ function init() {
 
       selectedVehicle = item.dataset.dashboardVehicle;
       selectedEntryId = "";
-      if (item.dataset.dashboardSource === "task") {
+      if (item.dataset.dashboardSource === "repairJob") {
+        openDetailModal("repairJob", item.dataset.dashboardItem);
+        return;
+      } else if (item.dataset.dashboardSource === "part") {
+        activeView = "parts";
+      } else if (item.dataset.dashboardSource === "inventory") {
+        activeView = "inventory";
+      } else if (item.dataset.dashboardSource === "maintenanceSchedule") {
+        activeView = "scheduler";
+      } else if (item.dataset.dashboardSource === "inspection") {
+        activeView = "inspections";
+      } else if (item.dataset.dashboardSource === "task") {
         activeView = "dashboard";
       } else if (item.dataset.dashboardSource === "profile") {
         activeView = "profile";
@@ -737,6 +1008,134 @@ function init() {
     render();
   });
 
+  els.repairBoardView.addEventListener("click", (event) => {
+    const quickAdd = event.target.closest("[data-open-quick-add]");
+    if (quickAdd) {
+      quickAddOpen = true;
+      quickAddMode = quickAdd.dataset.openQuickAdd || "repairJob";
+      renderQuickAddModal();
+      return;
+    }
+
+    const move = event.target.closest("[data-move-job]");
+    if (move) {
+      updateRepairJobStatus(move.dataset.moveJob, move.dataset.status);
+      return;
+    }
+
+    const card = event.target.closest("[data-open-job]");
+    if (!card) return;
+    openDetailModal("repairJob", card.dataset.openJob);
+  });
+
+  els.repairBoardView.addEventListener("dragstart", (event) => {
+    const card = event.target.closest("[data-open-job]");
+    if (!card) return;
+    event.dataTransfer.setData("text/plain", card.dataset.openJob);
+    event.dataTransfer.effectAllowed = "move";
+  });
+
+  els.repairBoardView.addEventListener("dragover", (event) => {
+    if (!event.target.closest("[data-job-status-column]")) return;
+    event.preventDefault();
+  });
+
+  els.repairBoardView.addEventListener("drop", (event) => {
+    const column = event.target.closest("[data-job-status-column]");
+    if (!column) return;
+    event.preventDefault();
+    updateRepairJobStatus(event.dataTransfer.getData("text/plain"), column.dataset.jobStatusColumn);
+  });
+
+  els.partsView.addEventListener("click", (event) => {
+    const quickAdd = event.target.closest("[data-open-quick-add]");
+    if (quickAdd) {
+      quickAddOpen = true;
+      quickAddMode = "part";
+      renderQuickAddModal();
+      return;
+    }
+
+    const statusButton = event.target.closest("[data-part-status]");
+    if (!statusButton) return;
+    updatePartStatus(statusButton.dataset.partStatus, statusButton.dataset.status);
+  });
+
+  els.inventoryView.addEventListener("click", (event) => {
+    const quickAdd = event.target.closest("[data-open-quick-add]");
+    if (quickAdd) {
+      quickAddOpen = true;
+      quickAddMode = "inventory";
+      renderQuickAddModal();
+    }
+  });
+
+  els.inspectionsView.addEventListener("click", (event) => {
+    const quickAdd = event.target.closest("[data-open-quick-add]");
+    if (quickAdd) {
+      quickAddOpen = true;
+      quickAddMode = "inspection";
+      renderQuickAddModal();
+    }
+  });
+
+  els.restockView.addEventListener("click", (event) => {
+    const purchased = event.target.closest("[data-mark-purchased]");
+    if (!purchased) return;
+    markInventoryPurchased(purchased.dataset.markPurchased);
+  });
+
+  els.expensesView.addEventListener("click", (event) => {
+    const quickAdd = event.target.closest("[data-open-quick-add]");
+    if (quickAdd) {
+      quickAddOpen = true;
+      quickAddMode = "expense";
+      renderQuickAddModal();
+      return;
+    }
+
+    const entry = event.target.closest("[data-open-entry]");
+    if (!entry) return;
+    openEntryDetail(entry.dataset.openEntry);
+  });
+
+  els.schedulerView.addEventListener("click", (event) => {
+    const quickAdd = event.target.closest("[data-open-quick-add]");
+    if (quickAdd) {
+      quickAddOpen = true;
+      quickAddMode = "schedule";
+      renderQuickAddModal();
+      return;
+    }
+
+    const done = event.target.closest("[data-complete-schedule]");
+    if (!done) return;
+    completeMaintenanceSchedule(done.dataset.completeSchedule);
+  });
+
+  els.detailModal.addEventListener("click", (event) => {
+    if (event.target.matches("[data-detail-backdrop]") || event.target.closest("[data-close-detail]")) {
+      closeDetailModal();
+      return;
+    }
+
+    const addNeed = event.target.closest("[data-add-job-inventory]");
+    if (addNeed) {
+      addInventoryNeedToActiveJob();
+      return;
+    }
+
+    const removeNeed = event.target.closest("[data-remove-job-inventory]");
+    if (!removeNeed) return;
+    removeInventoryNeedFromActiveJob(removeNeed.dataset.removeJobInventory);
+  });
+
+  els.detailModal.addEventListener("submit", (event) => {
+    if (!event.target.matches("#repairJobDetailForm")) return;
+    event.preventDefault();
+    saveRepairJobDetail(event.target);
+  });
+
   els.themeToggle.addEventListener("click", () => {
     state.theme = state.theme === "night" ? "day" : "night";
     applyTheme(state.theme);
@@ -760,6 +1159,12 @@ function loadState() {
         tasks: normalizeTasks(saved.tasks, vehicles),
         profiles: mergeProfiles(saved.profiles, vehicles),
         diagnostics: normalizeDiagnostics(saved.diagnostics, vehicles),
+        repairJobs: normalizeRepairJobs(saved.repairJobs, vehicles),
+        parts: normalizeParts(saved.parts, vehicles),
+        inventory: normalizeInventory(saved.inventory),
+        inspections: normalizeInspections(saved.inspections, vehicles),
+        maintenanceSchedules: normalizeMaintenanceSchedules(saved.maintenanceSchedules, vehicles),
+        notificationPrep: normalizeNotificationPrep(saved.notificationPrep),
         theme: saved.theme === "night" ? "night" : "day",
         costMode: costModes.some((mode) => mode.id === saved.costMode) ? saved.costMode : "logged",
         activeView: "dashboard"
@@ -777,6 +1182,12 @@ function loadState() {
     tasks: normalizeTasks(seedTasks),
     profiles: mergeProfiles(),
     diagnostics: normalizeDiagnostics(seedDiagnostics),
+    repairJobs: normalizeRepairJobs(seedRepairJobs),
+    parts: normalizeParts(seedParts),
+    inventory: normalizeInventory(seedInventory),
+    inspections: normalizeInspections(seedInspections),
+    maintenanceSchedules: normalizeMaintenanceSchedules(seedMaintenanceSchedules),
+    notificationPrep: normalizeNotificationPrep(defaultNotificationPrep),
     theme: "night",
     costMode: "logged",
     activeView: "dashboard"
@@ -899,6 +1310,156 @@ function normalizeDiagnostic(item) {
     scheduledTime: item.scheduledTime || "",
     durationHours: item.durationHours || ""
   };
+}
+
+function normalizeRepairJobs(savedJobs, vehicleRecords = defaultVehicles) {
+  const vehicleNames = getVehicleNames(normalizeVehicles(vehicleRecords));
+  const jobs = Array.isArray(savedJobs) ? savedJobs : seedRepairJobs;
+  return jobs
+    .filter((job) => vehicleNames.includes(job.vehicle))
+    .map((job) => normalizeRepairJob(job));
+}
+
+function normalizeRepairJob(job) {
+  const status = repairJobStatuses.includes(job.status) ? job.status : "Idea / Concern";
+  return {
+    id: job.id || `job-${Date.now()}`,
+    vehicle: job.vehicle || "Yukon",
+    title: String(job.title || "").trim(),
+    priority: normalizePriority(job.priority || "High"),
+    status,
+    scheduledDate: job.scheduledDate || "",
+    scheduledTime: job.scheduledTime || "",
+    estimatedHours: String(job.estimatedHours || ""),
+    estimatedCost: moneyNumber(job.estimatedCost),
+    partsStatus: partStatuses.includes(job.partsStatus) ? job.partsStatus : inferPartsStatusFromJobStatus(status),
+    symptoms: String(job.symptoms || "").trim(),
+    testingPerformed: String(job.testingPerformed || "").trim(),
+    results: String(job.results || "").trim(),
+    suspectedCauses: String(job.suspectedCauses || "").trim(),
+    finalDiagnosis: String(job.finalDiagnosis || "").trim(),
+    stepsPerformed: String(job.stepsPerformed || "").trim(),
+    notes: String(job.notes || "").trim(),
+    photos: String(job.photos || "").trim(),
+    videoPlaceholder: String(job.videoPlaceholder || "").trim(),
+    partsCost: moneyNumber(job.partsCost),
+    laborValue: moneyNumber(job.laborValue),
+    resolution: String(job.resolution || "").trim(),
+    lessonsLearned: String(job.lessonsLearned || "").trim(),
+    finalNotes: String(job.finalNotes || "").trim(),
+    inventoryNeeds: normalizeInventoryNeeds(job.inventoryNeeds),
+    inventoryDeducted: Boolean(job.inventoryDeducted),
+    createdAt: job.createdAt || today(),
+    completedAt: status === "Completed" ? job.completedAt || today() : job.completedAt || ""
+  };
+}
+
+function normalizeInventoryNeeds(needs) {
+  if (!Array.isArray(needs)) return [];
+  return needs
+    .map((need) => ({
+      inventoryId: String(need.inventoryId || "").trim(),
+      quantity: Math.max(0, Number.parseFloat(need.quantity || "0"))
+    }))
+    .filter((need) => need.inventoryId && need.quantity > 0);
+}
+
+function normalizeParts(savedParts, vehicleRecords = defaultVehicles) {
+  const vehicleNames = getVehicleNames(normalizeVehicles(vehicleRecords));
+  const parts = Array.isArray(savedParts) ? savedParts : seedParts;
+  return parts
+    .filter((part) => !part.vehicle || vehicleNames.includes(part.vehicle))
+    .map((part) => ({
+      id: part.id || `part-${Date.now()}`,
+      vehicle: part.vehicle || "Yukon",
+      name: String(part.name || part.partName || "").trim(),
+      partNumber: String(part.partNumber || "").trim(),
+      vendor: String(part.vendor || "").trim(),
+      price: moneyNumber(part.price),
+      link: String(part.link || "").trim(),
+      quantity: Math.max(0, Number.parseFloat(part.quantity || "1")),
+      status: partStatuses.includes(part.status) ? part.status : "Researching",
+      notes: String(part.notes || "").trim()
+    }));
+}
+
+function normalizeInventory(savedInventory) {
+  const inventory = Array.isArray(savedInventory) ? savedInventory : seedInventory;
+  return inventory.map((item) => ({
+    id: item.id || `inv-${Date.now()}`,
+    name: String(item.name || item.itemName || "").trim(),
+    category: inventoryCategories.includes(item.category) ? item.category : "Miscellaneous",
+    quantity: Math.max(0, Number.parseFloat(item.quantity || "0")),
+    unit: String(item.unit || "ea").trim(),
+    minimumStock: Math.max(0, Number.parseFloat(item.minimumStock || item.minimumStockLevel || "0")),
+    storageLocation: String(item.storageLocation || "").trim(),
+    vehicleCompatibility: String(item.vehicleCompatibility || "").trim(),
+    preferredVendor: String(item.preferredVendor || "").trim(),
+    restockLink: String(item.restockLink || "").trim(),
+    lastPurchasedDate: item.lastPurchasedDate || "",
+    cost: moneyNumber(item.cost),
+    notes: String(item.notes || "").trim()
+  }));
+}
+
+function normalizeInspections(savedInspections, vehicleRecords = defaultVehicles) {
+  const vehicleNames = getVehicleNames(normalizeVehicles(vehicleRecords));
+  const inspections = Array.isArray(savedInspections) ? savedInspections : seedInspections;
+  return inspections
+    .filter((inspection) => vehicleNames.includes(inspection.vehicle))
+    .map((inspection) => ({
+      id: inspection.id || `inspection-${Date.now()}`,
+      vehicle: inspection.vehicle || "Yukon",
+      template: inspectionTemplates.includes(inspection.template) ? inspection.template : inspectionTemplates[0],
+      date: inspection.date || today(),
+      summary: String(inspection.summary || "").trim(),
+      photos: String(inspection.photos || "").trim(),
+      items: normalizeInspectionItems(inspection.items, inspection.template)
+    }));
+}
+
+function normalizeInspectionItems(items, template = inspectionTemplates[0]) {
+  const source = Array.isArray(items) && items.length ? items : defaultInspectionItems(template);
+  return source.map((item) => ({
+    label: String(item.label || "").trim(),
+    result: inspectionResults.includes(item.result) ? item.result : "Monitor",
+    notes: String(item.notes || "").trim()
+  }));
+}
+
+function normalizeMaintenanceSchedules(savedSchedules, vehicleRecords = defaultVehicles) {
+  const vehicleNames = getVehicleNames(normalizeVehicles(vehicleRecords));
+  const schedules = Array.isArray(savedSchedules) ? savedSchedules : seedMaintenanceSchedules;
+  return schedules
+    .filter((schedule) => vehicleNames.includes(schedule.vehicle))
+    .map((schedule) => normalizeMaintenanceSchedule(schedule));
+}
+
+function normalizeMaintenanceSchedule(schedule) {
+  return {
+    id: schedule.id || `schedule-${Date.now()}`,
+    vehicle: schedule.vehicle || "Yukon",
+    title: String(schedule.title || "").trim(),
+    intervalMode: maintenanceIntervalModes.includes(schedule.intervalMode) ? schedule.intervalMode : "Date",
+    intervalMileage: Number.parseFloat(schedule.intervalMileage || "0") || "",
+    intervalMonths: Number.parseFloat(schedule.intervalMonths || "0") || "",
+    lastDoneMileage: Number.parseFloat(schedule.lastDoneMileage || "0") || "",
+    lastDoneDate: schedule.lastDoneDate || "",
+    nextDueMileage: Number.parseFloat(schedule.nextDueMileage || "0") || "",
+    nextDueDate: schedule.nextDueDate || "",
+    status: schedule.status || "Scheduled",
+    notes: String(schedule.notes || "").trim()
+  };
+}
+
+function normalizeNotificationPrep(savedPrep) {
+  const source = Array.isArray(savedPrep) ? savedPrep : defaultNotificationPrep;
+  const byType = new Map(source.map((item) => [item.type, item]));
+  return notificationPrepTypes.map((type) => ({
+    type,
+    enabled: Boolean(byType.get(type)?.enabled),
+    visualOnly: true
+  }));
 }
 
 function defaultProfileFor(record) {
@@ -1223,7 +1784,123 @@ function saveQuickAdd(form) {
     ];
   }
 
+  if (mode === "repairJob") {
+    const title = String(formData.get("title") || "").trim();
+    if (!title) return;
+    state.repairJobs = [
+      normalizeRepairJob({
+        id: `job-${Date.now()}`,
+        vehicle,
+        title,
+        priority: String(formData.get("priority") || "High"),
+        status: String(formData.get("status") || "Idea / Concern"),
+        scheduledDate: String(formData.get("scheduledDate") || ""),
+        scheduledTime: String(formData.get("scheduledTime") || ""),
+        estimatedHours: String(formData.get("estimatedHours") || ""),
+        estimatedCost: Number.parseFloat(formData.get("estimatedCost") || "0"),
+        partsStatus: String(formData.get("partsStatus") || "Needed"),
+        symptoms: String(formData.get("symptoms") || "").trim(),
+        notes: String(formData.get("notes") || "").trim(),
+        createdAt: today()
+      }),
+      ...state.repairJobs
+    ];
+    activeView = "repairBoard";
+  }
+
+  if (mode === "part") {
+    const name = String(formData.get("name") || "").trim();
+    if (!name) return;
+    state.parts = [
+      normalizeParts([
+        {
+          id: `part-${Date.now()}`,
+          vehicle,
+          name,
+          partNumber: String(formData.get("partNumber") || "").trim(),
+          vendor: String(formData.get("vendor") || "").trim(),
+          price: Number.parseFloat(formData.get("price") || "0"),
+          link: String(formData.get("link") || "").trim(),
+          quantity: Number.parseFloat(formData.get("quantity") || "1"),
+          status: String(formData.get("status") || "Researching"),
+          notes: String(formData.get("notes") || "").trim()
+        }
+      ], state.vehicles)[0],
+      ...state.parts
+    ];
+    activeView = "parts";
+  }
+
+  if (mode === "inventory") {
+    const name = String(formData.get("name") || "").trim();
+    if (!name) return;
+    state.inventory = [
+      normalizeInventory([
+        {
+          id: `inv-${Date.now()}`,
+          name,
+          category: String(formData.get("category") || "Miscellaneous"),
+          quantity: Number.parseFloat(formData.get("quantity") || "0"),
+          unit: String(formData.get("unit") || "ea").trim(),
+          minimumStock: Number.parseFloat(formData.get("minimumStock") || "0"),
+          storageLocation: String(formData.get("storageLocation") || "").trim(),
+          vehicleCompatibility: String(formData.get("vehicleCompatibility") || "").trim(),
+          preferredVendor: String(formData.get("preferredVendor") || "").trim(),
+          restockLink: String(formData.get("restockLink") || "").trim(),
+          lastPurchasedDate: String(formData.get("lastPurchasedDate") || ""),
+          cost: Number.parseFloat(formData.get("cost") || "0"),
+          notes: String(formData.get("notes") || "").trim()
+        }
+      ])[0],
+      ...state.inventory
+    ];
+    activeView = "inventory";
+  }
+
+  if (mode === "inspection") {
+    const template = String(formData.get("template") || inspectionTemplates[0]);
+    state.inspections = [
+      normalizeInspections([
+        {
+          id: `inspection-${Date.now()}`,
+          vehicle,
+          template,
+          date: String(formData.get("date") || today()),
+          summary: String(formData.get("summary") || "").trim(),
+          photos: String(formData.get("photos") || "").trim(),
+          items: defaultInspectionItems(template)
+        }
+      ], state.vehicles)[0],
+      ...state.inspections
+    ];
+    activeView = "inspections";
+  }
+
+  if (mode === "schedule") {
+    const title = String(formData.get("title") || "").trim();
+    if (!title) return;
+    state.maintenanceSchedules = [
+      normalizeMaintenanceSchedule({
+        id: `schedule-${Date.now()}`,
+        vehicle,
+        title,
+        intervalMode: String(formData.get("intervalMode") || "Date"),
+        intervalMileage: formData.get("intervalMileage"),
+        intervalMonths: formData.get("intervalMonths"),
+        lastDoneMileage: formData.get("lastDoneMileage"),
+        lastDoneDate: String(formData.get("lastDoneDate") || ""),
+        nextDueMileage: formData.get("nextDueMileage"),
+        nextDueDate: String(formData.get("nextDueDate") || ""),
+        status: "Scheduled",
+        notes: String(formData.get("notes") || "").trim()
+      }),
+      ...state.maintenanceSchedules
+    ];
+    activeView = "scheduler";
+  }
+
   selectedVehicle = vehicle;
+  state.activeView = activeView;
   closeQuickAdd(false);
   saveState();
   render();
@@ -1269,8 +1946,13 @@ function renderQuickAddModal() {
 
 function renderQuickAddOptions() {
   const options = [
+    { id: "repairJob", label: "Add Repair Job", meta: "Kanban status, diagnosis, cost", iconName: "wrench" },
+    { id: "inventory", label: "Add Inventory Item", meta: "Stock, location, vendor", iconName: "box" },
+    { id: "part", label: "Add Part", meta: "Part number, vendor, search", iconName: "tag" },
     { id: "task", label: "Add Task", meta: "Priority, status, due date", iconName: "list" },
     { id: "expense", label: "Add Expense", meta: "Parts, labor, maintenance", iconName: "receipt" },
+    { id: "inspection", label: "Add Inspection", meta: "Template, pass, monitor, fail", iconName: "check" },
+    { id: "schedule", label: "Add Service Schedule", meta: "Mileage and date intervals", iconName: "calendar" },
     { id: "timeline", label: "Add Timeline Note", meta: "Repair, note, upgrade, maintenance", iconName: "note" },
     { id: "vehicle", label: "Add Vehicle / Project", meta: "Car, boat, bike, toy", iconName: "car" }
   ];
@@ -1293,6 +1975,222 @@ function renderQuickAddOptions() {
 }
 
 function renderQuickAddForm(mode) {
+  if (mode === "repairJob") {
+    return `
+      <form class="quick-add-form" data-quick-add-form="repairJob" autocomplete="off">
+        ${renderQuickAddVehicleField()}
+        <label class="field-wide">
+          <span>Job title</span>
+          <input name="title" type="text" placeholder="No-start diagnosis" required />
+        </label>
+        <label>
+          <span>Priority</span>
+          <select name="priority">${renderPriorityOptions("High")}</select>
+        </label>
+        <label>
+          <span>Board status</span>
+          <select name="status">${renderRepairJobStatusOptions("Idea / Concern")}</select>
+        </label>
+        <label>
+          <span>Parts status</span>
+          <select name="partsStatus">${renderPartStatusOptions("Needed")}</select>
+        </label>
+        <label>
+          <span>Estimated cost</span>
+          <input name="estimatedCost" type="number" min="0" step="0.01" placeholder="125.00" />
+        </label>
+        <label>
+          <span>Scheduled date</span>
+          <input name="scheduledDate" type="date" />
+        </label>
+        <label>
+          <span>Scheduled time</span>
+          <input name="scheduledTime" type="time" />
+        </label>
+        <label>
+          <span>Estimated hours</span>
+          <input name="estimatedHours" type="number" min="0" step="0.25" placeholder="2" />
+        </label>
+        <label class="field-wide">
+          <span>Symptoms</span>
+          <textarea name="symptoms" rows="3" placeholder="What is the vehicle doing?"></textarea>
+        </label>
+        <label class="field-wide">
+          <span>Notes</span>
+          <textarea name="notes" rows="3" placeholder="Testing order, tools needed, parts to check..."></textarea>
+        </label>
+        ${renderQuickAddActions()}
+      </form>
+    `;
+  }
+
+  if (mode === "part") {
+    return `
+      <form class="quick-add-form" data-quick-add-form="part" autocomplete="off">
+        ${renderQuickAddVehicleField()}
+        <label class="field-wide">
+          <span>Part name</span>
+          <input name="name" type="text" placeholder="Brake pads" required />
+        </label>
+        <label>
+          <span>Part number</span>
+          <input name="partNumber" type="text" placeholder="Optional" />
+        </label>
+        <label>
+          <span>Status</span>
+          <select name="status">${renderPartStatusOptions("Researching")}</select>
+        </label>
+        <label>
+          <span>Vendor</span>
+          <input name="vendor" type="text" placeholder="RockAuto" />
+        </label>
+        <label>
+          <span>Price</span>
+          <input name="price" type="number" min="0" step="0.01" placeholder="0.00" />
+        </label>
+        <label>
+          <span>Quantity</span>
+          <input name="quantity" type="number" min="0" step="1" value="1" />
+        </label>
+        <label class="field-wide">
+          <span>Link</span>
+          <input name="link" type="url" placeholder="https://..." />
+        </label>
+        <label class="field-wide">
+          <span>Notes</span>
+          <textarea name="notes" rows="3" placeholder="Fitment notes, alternatives, vendor notes..."></textarea>
+        </label>
+        ${renderQuickAddActions()}
+      </form>
+    `;
+  }
+
+  if (mode === "inventory") {
+    return `
+      <form class="quick-add-form" data-quick-add-form="inventory" autocomplete="off">
+        <label class="field-wide">
+          <span>Item name</span>
+          <input name="name" type="text" placeholder="5W-40 oil" required />
+        </label>
+        <label>
+          <span>Category</span>
+          <select name="category">${renderInventoryCategoryOptions("Oils & Fluids")}</select>
+        </label>
+        <label>
+          <span>Quantity</span>
+          <input name="quantity" type="number" min="0" step="0.01" value="1" />
+        </label>
+        <label>
+          <span>Unit</span>
+          <input name="unit" type="text" value="ea" />
+        </label>
+        <label>
+          <span>Minimum stock</span>
+          <input name="minimumStock" type="number" min="0" step="0.01" value="1" />
+        </label>
+        <label>
+          <span>Storage location</span>
+          <input name="storageLocation" type="text" placeholder="Fluid shelf" />
+        </label>
+        <label>
+          <span>Compatibility</span>
+          <input name="vehicleCompatibility" type="text" placeholder="Yukon, all, BMW..." />
+        </label>
+        <label>
+          <span>Preferred vendor</span>
+          <input name="preferredVendor" type="text" placeholder="NAPA" />
+        </label>
+        <label>
+          <span>Last purchased</span>
+          <input name="lastPurchasedDate" type="date" />
+        </label>
+        <label>
+          <span>Cost</span>
+          <input name="cost" type="number" min="0" step="0.01" placeholder="0.00" />
+        </label>
+        <label class="field-wide">
+          <span>Restock link</span>
+          <input name="restockLink" type="url" placeholder="https://..." />
+        </label>
+        <label class="field-wide">
+          <span>Notes</span>
+          <textarea name="notes" rows="3" placeholder="Shelf, size, alternate brands..."></textarea>
+        </label>
+        ${renderQuickAddActions()}
+      </form>
+    `;
+  }
+
+  if (mode === "inspection") {
+    return `
+      <form class="quick-add-form" data-quick-add-form="inspection" autocomplete="off">
+        ${renderQuickAddVehicleField()}
+        <label>
+          <span>Template</span>
+          <select name="template">${renderInspectionTemplateOptions("Oil Change Inspection")}</select>
+        </label>
+        <label>
+          <span>Date</span>
+          <input name="date" type="date" value="${escapeAttr(today())}" />
+        </label>
+        <label class="field-wide">
+          <span>Summary</span>
+          <textarea name="summary" rows="3" placeholder="What did you find?"></textarea>
+        </label>
+        <label class="field-wide">
+          <span>Photo notes</span>
+          <textarea name="photos" rows="2" placeholder="Photo placeholder for now. Add notes or filenames."></textarea>
+        </label>
+        ${renderQuickAddActions()}
+      </form>
+    `;
+  }
+
+  if (mode === "schedule") {
+    return `
+      <form class="quick-add-form" data-quick-add-form="schedule" autocomplete="off">
+        ${renderQuickAddVehicleField()}
+        <label class="field-wide">
+          <span>Service title</span>
+          <input name="title" type="text" placeholder="Brake fluid" required />
+        </label>
+        <label>
+          <span>Track by</span>
+          <select name="intervalMode">${renderMaintenanceIntervalOptions("Both")}</select>
+        </label>
+        <label>
+          <span>Every miles</span>
+          <input name="intervalMileage" type="number" min="0" step="1" placeholder="5000" />
+        </label>
+        <label>
+          <span>Every months</span>
+          <input name="intervalMonths" type="number" min="0" step="1" placeholder="6" />
+        </label>
+        <label>
+          <span>Last done mileage</span>
+          <input name="lastDoneMileage" type="number" min="0" step="1" />
+        </label>
+        <label>
+          <span>Last done date</span>
+          <input name="lastDoneDate" type="date" />
+        </label>
+        <label>
+          <span>Next due mileage</span>
+          <input name="nextDueMileage" type="number" min="0" step="1" />
+        </label>
+        <label>
+          <span>Next due date</span>
+          <input name="nextDueDate" type="date" />
+        </label>
+        <label class="field-wide">
+          <span>Notes</span>
+          <textarea name="notes" rows="3" placeholder="Fluid spec, filter, interval reminder..."></textarea>
+        </label>
+        ${renderQuickAddActions()}
+      </form>
+    `;
+  }
+
   if (mode === "task") {
     return `
       <form class="quick-add-form" data-quick-add-form="task" autocomplete="off">
@@ -1388,6 +2286,15 @@ function renderQuickAddVehicleField() {
     <label>
       <span>Vehicle / project</span>
       <select name="vehicle">${renderVehicleOptions(selectedVehicle)}</select>
+    </label>
+  `;
+}
+
+function renderQuickAddVehicleFieldFor(vehicle) {
+  return `
+    <label>
+      <span>Vehicle / project</span>
+      <select name="vehicle">${renderVehicleOptions(vehicle)}</select>
     </label>
   `;
 }
@@ -1496,12 +2403,12 @@ function render() {
   els.vehicleTitle.textContent = isGarageOverview ? "Garage Overview" : selectedVehicle;
   els.headerTotalLabel.textContent = isGarageOverview ? "Total vehicles" : "Total spent";
   els.headerTotal.textContent = isGarageOverview ? String(state.vehicles.length) : money(costDisplay.value);
-  els.headerSecondaryLabel.textContent = isGarageOverview ? "Open issues" : "Services logged";
-  els.headerEntries.textContent = isGarageOverview ? String(dashboardData.openIssueCount) : String(vehicleEntries.filter((entry) => entry.category === "maintenance").length);
-  els.headerIssues.textContent = isGarageOverview ? String(dashboardData.upcomingMaintenanceCount) : String(selectedSummary?.issueCount || 0);
-  els.headerUpgrades.textContent = isGarageOverview ? String(dashboardData.overdueServices.length) : String(vehicleEntries.filter((entry) => entry.category === "upgrades").length);
-  document.querySelector("#headerIssuesLabel").textContent = isGarageOverview ? "Upcoming" : "Open issues";
-  document.querySelector("#headerUpgradesLabel").textContent = isGarageOverview ? "Overdue" : "Upgrades";
+  els.headerSecondaryLabel.textContent = isGarageOverview ? "Active jobs" : "Services logged";
+  els.headerEntries.textContent = isGarageOverview ? String(dashboardData.activeRepairJobs.length) : String(vehicleEntries.filter((entry) => entry.category === "maintenance").length);
+  els.headerIssues.textContent = isGarageOverview ? String(dashboardData.waitingOnParts.length) : String(selectedSummary?.issueCount || 0);
+  els.headerUpgrades.textContent = isGarageOverview ? String(dashboardData.lowInventoryItems.length) : String(vehicleEntries.filter((entry) => entry.category === "upgrades").length);
+  document.querySelector("#headerIssuesLabel").textContent = isGarageOverview ? "Waiting parts" : "Open issues";
+  document.querySelector("#headerUpgradesLabel").textContent = isGarageOverview ? "Low stock" : "Upgrades";
   els.activeVehicleLabel.textContent = selectedVehicle;
   els.logTitle.textContent = activeFilter === "all" ? "Vehicle overview" : getCategoryLabel(activeFilter);
   els.visibleCount.textContent = `${shownEntries.length} shown`;
@@ -1518,6 +2425,14 @@ function render() {
   renderCosts(vehicleEntries, costSummary);
   renderNotes(vehicleEntries);
   renderEntryDetail();
+  renderRepairBoard();
+  renderParts();
+  renderInventory();
+  renderInspections();
+  renderRestock();
+  renderExpenses();
+  renderScheduler();
+  renderDetailModal();
   renderProfile();
   renderDiagnostics();
   syncViews();
@@ -1528,19 +2443,39 @@ function syncViews() {
   els.filterBar.classList.toggle("is-hidden", activeView !== "logbook");
   els.logbookView.classList.toggle("is-hidden", activeView !== "logbook");
   els.entryDetailView.classList.toggle("is-hidden", activeView !== "entryDetail");
+  els.repairBoardView.classList.toggle("is-hidden", activeView !== "repairBoard");
+  els.partsView.classList.toggle("is-hidden", activeView !== "parts");
+  els.inventoryView.classList.toggle("is-hidden", activeView !== "inventory");
+  els.inspectionsView.classList.toggle("is-hidden", activeView !== "inspections");
+  els.restockView.classList.toggle("is-hidden", activeView !== "restock");
+  els.expensesView.classList.toggle("is-hidden", activeView !== "expenses");
+  els.schedulerView.classList.toggle("is-hidden", activeView !== "scheduler");
   els.profileView.classList.toggle("is-hidden", activeView !== "profile");
   els.diagnosticsView.classList.toggle("is-hidden", activeView !== "diagnostics");
 }
 
 function renderWorkspaceTabs() {
   const diagnosticsCount = getDiagnostics(selectedVehicle).length;
-  const dashboardItems = getDashboardItems();
+  const dashboardData = getDashboardData();
+  const dashboardItems = dashboardData.items;
   const attentionCount = dashboardItems.filter((item) => needsAttention(item)).length;
   const scheduledCount = dashboardItems.filter((item) => item.scheduledDate && !isDoneItem(item)).length;
+  const counts = {
+    dashboard: attentionCount + dashboardData.lowInventoryItems.length,
+    logbook: scheduledCount,
+    repairBoard: dashboardData.activeRepairJobs.length,
+    parts: state.parts.filter((part) => part.status !== "Installed").length,
+    inventory: dashboardData.lowInventoryItems.length,
+    inspections: state.inspections.filter((inspection) => inspection.vehicle === selectedVehicle).length,
+    restock: dashboardData.lowInventoryItems.length,
+    expenses: getRecentExpenses().length,
+    scheduler: dashboardData.overdueMaintenance.length + dashboardData.upcomingMaintenance.length,
+    diagnostics: diagnosticsCount
+  };
 
   els.workspaceTabs.innerHTML = workspaceViews
     .map((view) => {
-      const count = view.id === "dashboard" ? attentionCount : view.id === "logbook" ? scheduledCount : view.id === "diagnostics" ? diagnosticsCount : 0;
+      const count = counts[view.id] || 0;
       const suffix = count ? ` <span>${count}</span>` : "";
       const isActive = view.id === activeView || (activeView === "entryDetail" && view.id === "logbook");
       return `
@@ -1561,26 +2496,57 @@ function renderEntryFormState() {
 
 function renderDashboard() {
   const data = getDashboardData();
-  const attentionItems = data.needsAttention.slice(0, 5);
+  const attentionItems = data.needsAttention.slice(0, 6);
+  const todayPriorities = data.todayPriorities.slice(0, 3);
   const recentExpenses = data.recentExpenses.slice(0, 5);
   const recentActivity = data.recentActivity.slice(0, 5);
+  const completedRepairs = data.recentCompletedRepairs.slice(0, 4);
 
   els.dashboardView.innerHTML = `
     <div class="garage-overview-hero">
       <div>
-        <p class="label">Command queue</p>
-        <h3>Next actions, not noise</h3>
-        <span>Use Quick Add when work happens, then let the overview surface what matters.</span>
+        <p class="label">Personal garage OS</p>
+        <h3>Garage Overview</h3>
+        <span>Fast entry from your phone, deeper planning from iPad or desktop, and one clear queue for what needs attention next.</span>
       </div>
       <button class="save-button quick-add-button" type="button" data-open-quick-add>${icon("plus")} Quick Add</button>
     </div>
 
-    <section class="dashboard-stat-grid os-stat-grid" aria-label="Garage overview totals">
+    <section class="today-priority-panel garage-os-priorities" aria-label="Today's priorities">
+      <div class="panel-heading">
+        <div>
+          <p class="label">Today's Priorities</p>
+          <h4>Top 3 urgent actions</h4>
+        </div>
+        <span>${data.todayPriorities.length} queued</span>
+      </div>
+      <div class="priority-stack">
+        ${
+          todayPriorities.length
+            ? todayPriorities.map(renderCommandPriorityItem).join("")
+            : `<div class="empty-state compact-dashboard">No urgent jobs right now. Add repair jobs, due dates, and inventory needs to build the queue.</div>`
+        }
+      </div>
+    </section>
+
+    <section class="quick-action-grid" aria-label="Garage quick actions">
+      ${renderDashboardQuickAction("Add Vehicle", "vehicle", "car")}
+      ${renderDashboardQuickAction("Add Repair Job", "repairJob", "wrench")}
+      ${renderDashboardQuickAction("Add Inventory Item", "inventory", "box")}
+      ${renderDashboardQuickAction("Add Part", "part", "tag")}
+      ${renderDashboardQuickAction("Add Expense", "expense", "receipt")}
+      ${renderDashboardQuickAction("Add Inspection", "inspection", "check")}
+    </section>
+
+    <section class="dashboard-stat-grid os-stat-grid shop-stat-grid" aria-label="Garage overview totals">
       ${renderDashboardStat("Total Vehicles", String(state.vehicles.length), "Garage projects tracked", "car")}
-      ${renderDashboardStat("Open Issues", String(data.openIssueCount), "Repairs, diagnostics, priority work", "alert", data.openIssueCount ? "warning" : "good")}
-      ${renderDashboardStat("Upcoming Maintenance", String(data.upcomingMaintenanceCount), "Scheduled in the next 30 days", "calendar")}
-      ${renderDashboardStat("Overdue Services", String(data.overdueServices.length), "Past due scheduled work", "clock", data.overdueServices.length ? "warning" : "good")}
-      ${renderDashboardStat("Total Maintenance Cost", money(data.totals.maintenanceCost), "Logged maintenance spend", "receipt")}
+      ${renderDashboardStat("Active Repair Jobs", String(data.activeRepairJobs.length), "Open Kanban jobs", "wrench", data.activeRepairJobs.length ? "warning" : "good")}
+      ${renderDashboardStat("Jobs In Progress Today", String(data.jobsToday.length), "Scheduled or in progress", "calendar")}
+      ${renderDashboardStat("Waiting on Parts", String(data.waitingOnParts.length), "Parts needed or ordered", "box", data.waitingOnParts.length ? "warning" : "good")}
+      ${renderDashboardStat("Upcoming Maintenance", String(data.upcomingMaintenance.length), "Due soon by date or mileage", "clock")}
+      ${renderDashboardStat("Low Inventory Alerts", String(data.lowInventoryItems.length), "Low or out of stock", "alert", data.lowInventoryItems.length ? "warning" : "good")}
+      ${renderDashboardStat("Recently Completed Repairs", String(data.recentCompletedRepairs.length), "Completed job history", "check")}
+      ${renderDashboardStat("Total Garage Spending", money(data.totals.garageSpending), "Vehicles, repairs, tools, parts", "receipt")}
     </section>
 
     <section class="needs-attention-panel" aria-label="Needs attention">
@@ -1600,6 +2566,42 @@ function renderDashboard() {
       </div>
     </section>
 
+    <div class="dashboard-layout shop-command-row">
+      <section class="dashboard-panel" aria-label="Active repair jobs">
+        <div class="panel-heading">
+          <div>
+            <p class="label">Repair jobs</p>
+            <h4>Active board</h4>
+          </div>
+          <span>${data.activeRepairJobs.length} active</span>
+        </div>
+        <div class="mini-job-list">
+          ${
+            data.activeRepairJobs.slice(0, 5).length
+              ? data.activeRepairJobs.slice(0, 5).map(renderMiniRepairJob).join("")
+              : `<div class="empty-state compact-dashboard">No active repair jobs.</div>`
+          }
+        </div>
+      </section>
+
+      <section class="dashboard-panel" aria-label="Low inventory">
+        <div class="panel-heading">
+          <div>
+            <p class="label">Inventory alerts</p>
+            <h4>Restock watch</h4>
+          </div>
+          <span>${data.lowInventoryItems.length} alerts</span>
+        </div>
+        <div class="mini-job-list">
+          ${
+            data.lowInventoryItems.slice(0, 5).length
+              ? data.lowInventoryItems.slice(0, 5).map(renderMiniInventoryAlert).join("")
+              : `<div class="empty-state compact-dashboard">Inventory levels look good.</div>`
+          }
+        </div>
+      </section>
+    </div>
+
     <section class="dashboard-panel vehicle-dashboard-panel command-vehicle-panel" aria-label="Vehicle cards">
         <div class="panel-heading">
           <div>
@@ -1614,6 +2616,23 @@ function renderDashboard() {
     </section>
 
     <div class="dashboard-layout lower">
+      <section class="dashboard-panel activity-panel" aria-label="Recently completed repairs">
+        <div class="panel-heading">
+          <div>
+            <p class="label">Completed repairs</p>
+            <h4>Recent wins</h4>
+          </div>
+          <span>${completedRepairs.length}</span>
+        </div>
+        <div class="timeline-list">
+          ${
+            completedRepairs.length
+              ? completedRepairs.map(renderCompletedRepairLine).join("")
+              : `<div class="empty-state compact-dashboard">Completed repair jobs will show here.</div>`
+          }
+        </div>
+      </section>
+
       <section class="dashboard-panel expense-panel" aria-label="Recent expenses">
         <div class="panel-heading">
           <div>
@@ -1655,18 +2674,33 @@ function getDashboardData() {
   const items = getDashboardItems();
   const activeItems = items.filter((item) => isActiveItem(item));
   const openTasks = items.filter((item) => item.source === "task" && !isDoneItem(item)).sort(compareDashboardItems);
+  const activeRepairJobs = state.repairJobs.filter((job) => job.status !== "Completed").sort(compareRepairJobs);
+  const repairJobItems = items.filter((item) => item.source === "repairJob" && !isDoneItem(item)).sort(compareDashboardItems);
   const priorityTasks = openTasks.filter((item) => priorityWeight(item.priority) >= 3);
-  const todayPriorities = openTasks;
+  const todayPriorities = [...repairJobItems, ...openTasks, ...activeItems.filter((item) => item.source !== "repairJob" && priorityWeight(item.priority) >= 3)]
+    .filter(uniqueAttentionItem)
+    .sort(compareDashboardItems);
   const attentionItems = activeItems.filter((item) => needsAttention(item)).sort(compareDashboardItems);
   const scheduledItems = activeItems.filter((item) => item.scheduledDate && !isDoneItem(item)).sort(compareSchedule);
   const vehicleSummaries = getVehicleDashboardSummaries(items);
   const recentExpenses = getRecentExpenses();
   const recentActivity = getRecentActivity();
   const overdueServices = activeItems.filter((item) => isOverdue(item)).sort(compareSchedule);
-  const upcomingMaintenance = activeItems.filter((item) => isUpcomingMaintenance(item)).sort(compareSchedule);
+  const upcomingMaintenanceItems = activeItems.filter((item) => isUpcomingMaintenance(item)).sort(compareSchedule);
+  const maintenanceStatus = getMaintenanceScheduleStatus();
+  const upcomingMaintenance = maintenanceStatus.filter((item) => item.statusKind === "Due Soon").sort(compareSchedule);
+  const overdueMaintenance = maintenanceStatus.filter((item) => item.statusKind === "Overdue").sort(compareSchedule);
   const openIssues = activeItems.filter((item) => isIssueItem(item)).sort(compareDashboardItems);
   const missingInfoItems = getMissingInfoAttentionItems(vehicleSummaries);
-  const needsAttentionItems = [...overdueServices, ...openIssues, ...missingInfoItems, ...attentionItems]
+  const lowInventoryItems = getLowInventoryItems();
+  const lowInventoryDashboardItems = lowInventoryItems.map(inventoryToDashboardItem);
+  const maintenanceDashboardItems = [...overdueMaintenance, ...upcomingMaintenance].map(maintenanceToDashboardItem);
+  const waitingOnParts = activeRepairJobs.filter((job) => ["Parts Needed", "Parts Ordered"].includes(job.status) || ["Needed", "Ordered"].includes(job.partsStatus));
+  const jobsToday = activeRepairJobs.filter((job) => job.status === "In Progress" || job.scheduledDate === today());
+  const recentCompletedRepairs = state.repairJobs
+    .filter((job) => job.status === "Completed")
+    .sort((a, b) => String(b.completedAt || b.createdAt || "").localeCompare(String(a.completedAt || a.createdAt || "")));
+  const needsAttentionItems = [...overdueServices, ...openIssues, ...missingInfoItems, ...maintenanceDashboardItems, ...lowInventoryDashboardItems, ...attentionItems]
     .filter(uniqueAttentionItem)
     .sort(compareAttentionItems);
 
@@ -1681,17 +2715,29 @@ function getDashboardData() {
     },
     { loggedTotal: 0, pricePaid: 0, sellValue: 0, totalInvested: 0, maintenanceCost: 0 }
   );
+  totals.partsCost = state.parts.reduce((total, part) => total + Number(part.price || 0) * Number(part.quantity || 1), 0);
+  totals.inventoryCost = state.inventory.reduce((total, item) => total + Number(item.cost || 0) * Number(item.quantity || 0), 0);
+  totals.repairJobCost = state.repairJobs.reduce((total, job) => total + Number(job.partsCost || 0) + Number(job.laborValue || 0), 0);
+  totals.garageSpending = totals.totalInvested + totals.partsCost + totals.inventoryCost + totals.repairJobCost;
 
   return {
     items,
     activeItems,
     openTasks,
+    activeRepairJobs,
+    jobsToday,
+    waitingOnParts,
     todayPriorities,
     urgentTaskCount: priorityTasks.length,
     attentionItems,
     needsAttention: needsAttentionItems,
     openIssueCount: openIssues.length,
-    upcomingMaintenanceCount: upcomingMaintenance.length,
+    upcomingMaintenanceCount: upcomingMaintenanceItems.length + upcomingMaintenance.length,
+    upcomingMaintenance,
+    overdueMaintenance,
+    maintenanceStatus,
+    lowInventoryItems,
+    recentCompletedRepairs,
     overdueServices,
     scheduledItems,
     vehicleSummaries,
@@ -1712,6 +2758,55 @@ function renderDashboardStat(label, value, meta, iconName, tone = "") {
         <small>${escapeHtml(meta)}</small>
       </div>
     </article>
+  `;
+}
+
+function renderDashboardQuickAction(label, mode, iconName) {
+  return `
+    <button class="quick-action-card" type="button" data-open-quick-add="${escapeAttr(mode)}">
+      <span>${icon(iconName)}</span>
+      <strong>${escapeHtml(label)}</strong>
+    </button>
+  `;
+}
+
+function renderMiniRepairJob(job) {
+  return `
+    <button class="mini-command-card" type="button" data-dashboard-item="${escapeAttr(job.id)}" data-dashboard-source="repairJob" data-dashboard-vehicle="${escapeAttr(job.vehicle)}">
+      <span class="mini-command-icon">${icon("wrench")}</span>
+      <span class="mini-command-main">
+        <strong>${escapeHtml(job.title)}</strong>
+        <small>${escapeHtml(job.vehicle)} / ${escapeHtml(job.status)} / ${escapeHtml(job.partsStatus)}</small>
+      </span>
+      ${renderPriorityPill(job)}
+    </button>
+  `;
+}
+
+function renderMiniInventoryAlert(item) {
+  const status = inventoryStatus(item);
+  return `
+    <button class="mini-command-card inventory-alert-${escapeAttr(slugify(status.label))}" type="button" data-dashboard-item="${escapeAttr(item.id)}" data-dashboard-source="inventory" data-dashboard-vehicle="${escapeAttr(selectedVehicle)}">
+      <span class="mini-command-icon">${icon(status.icon)}</span>
+      <span class="mini-command-main">
+        <strong>${escapeHtml(item.name)}</strong>
+        <small>${escapeHtml(status.label)} / ${escapeHtml(item.quantity)} ${escapeHtml(item.unit)} available / min ${escapeHtml(item.minimumStock)}</small>
+      </span>
+      <span class="status-badge compact">${escapeHtml(item.category)}</span>
+    </button>
+  `;
+}
+
+function renderCompletedRepairLine(job) {
+  return `
+    <button class="timeline-line activity-line" type="button" data-dashboard-item="${escapeAttr(job.id)}" data-dashboard-source="repairJob" data-dashboard-vehicle="${escapeAttr(job.vehicle)}">
+      <span class="timeline-line-icon">${icon("check")}</span>
+      <span>
+        <strong>${escapeHtml(job.title)}</strong>
+        <small>${escapeHtml(job.vehicle)} / ${escapeHtml(formatDate(job.completedAt || job.createdAt))}</small>
+      </span>
+      <b>${money(Number(job.partsCost || 0) + Number(job.laborValue || 0))}</b>
+    </button>
   `;
 }
 
@@ -1880,6 +2975,800 @@ function renderDashboardItem(item, mode = "default") {
   `;
 }
 
+function renderRepairBoard() {
+  const activeCount = state.repairJobs.filter((job) => job.status !== "Completed").length;
+  els.repairBoardView.innerHTML = `
+    <div class="module-hero">
+      <div>
+        <p class="label">Repair job board</p>
+        <h3>Kanban workflow</h3>
+        <span>Move jobs from concern to diagnosis, parts, repair, and completed history.</span>
+      </div>
+      <button class="save-button" type="button" data-open-quick-add="repairJob">${icon("plus")} Add Repair Job</button>
+    </div>
+
+    <div class="kanban-board" aria-label="Repair job status columns">
+      ${repairJobStatuses.map((status) => renderRepairColumn(status)).join("")}
+    </div>
+
+    <section class="dashboard-panel module-panel" aria-label="Repair system prep">
+      <div class="panel-heading">
+        <div>
+          <p class="label">Work orders</p>
+          <h4>${activeCount} active jobs</h4>
+        </div>
+        <span>Drag on desktop, tap to edit on mobile</span>
+      </div>
+      <p class="module-copy">Job details include diagnosis, testing, repair steps, cost tracking, lessons learned, and attached inventory so your long-term history stays useful.</p>
+    </section>
+  `;
+}
+
+function renderRepairColumn(status) {
+  const jobs = state.repairJobs.filter((job) => job.status === status).sort(compareRepairJobs);
+  return `
+    <section class="kanban-column" data-job-status-column="${escapeAttr(status)}">
+      <div class="kanban-column-head">
+        <strong>${escapeHtml(status)}</strong>
+        <span>${jobs.length}</span>
+      </div>
+      <div class="kanban-card-stack">
+        ${
+          jobs.length
+            ? jobs.map(renderRepairJobCard).join("")
+            : `<div class="kanban-empty">Drop jobs here</div>`
+        }
+      </div>
+    </section>
+  `;
+}
+
+function renderRepairJobCard(job) {
+  const profile = getProfile(job.vehicle);
+  return `
+    <article class="repair-job-card" draggable="true" data-open-job="${escapeAttr(job.id)}">
+      <div class="repair-job-top">
+        <span class="vehicle-icon" aria-hidden="true">${icon(typeIcon(getVehicleRecord(job.vehicle).type))}</span>
+        <div>
+          <strong>${escapeHtml(job.title)}</strong>
+          <small>${escapeHtml(job.vehicle)} / ${escapeHtml(vehicleDescriptor(job.vehicle) || profile.profileType || "Vehicle")}</small>
+        </div>
+      </div>
+      <div class="repair-job-meta">
+        ${renderPriorityPill(job)}
+        <span>${escapeHtml(job.partsStatus)}</span>
+        ${job.scheduledDate ? `<span>${escapeHtml(formatSchedule({ scheduledDate: job.scheduledDate, scheduledTime: job.scheduledTime, durationHours: job.estimatedHours }))}</span>` : ""}
+      </div>
+      <p>${escapeHtml(job.symptoms || job.notes || "No diagnosis notes yet.")}</p>
+      <div class="repair-job-cost-row">
+        <span>Est. ${money(job.estimatedCost)}</span>
+        <span>Actual ${money(Number(job.partsCost || 0) + Number(job.laborValue || 0))}</span>
+      </div>
+      <div class="repair-job-actions">
+        ${renderJobMoveButton(job, -1)}
+        ${renderJobMoveButton(job, 1)}
+      </div>
+    </article>
+  `;
+}
+
+function renderJobMoveButton(job, direction) {
+  const index = repairJobStatuses.indexOf(job.status);
+  const next = repairJobStatuses[index + direction];
+  if (!next) return "";
+  return `<button class="ghost-button compact-button" type="button" data-move-job="${escapeAttr(job.id)}" data-status="${escapeAttr(next)}">${direction < 0 ? "Back" : "Next"}</button>`;
+}
+
+function renderParts() {
+  const openParts = state.parts.filter((part) => part.status !== "Installed").length;
+  els.partsView.innerHTML = `
+    <div class="module-hero">
+      <div>
+        <p class="label">Parts tracker</p>
+        <h3>Research, order, receive, install</h3>
+        <span>Smart searches include year, make, model, trim, and part name when profile data exists.</span>
+      </div>
+      <button class="save-button" type="button" data-open-quick-add="part">${icon("plus")} Add Part</button>
+    </div>
+
+    <section class="module-toolbar">
+      <div><strong>${state.parts.length}</strong><span>Total parts</span></div>
+      <div><strong>${openParts}</strong><span>Open</span></div>
+      <div><strong>${money(state.parts.reduce((total, part) => total + Number(part.price || 0) * Number(part.quantity || 1), 0))}</strong><span>Parts value</span></div>
+    </section>
+
+    <div class="parts-grid">
+      ${state.parts.length ? state.parts.map(renderPartCard).join("") : `<div class="empty-state">Add parts to start tracking research, orders, and installation.</div>`}
+    </div>
+  `;
+}
+
+function renderPartCard(part) {
+  const searchUrls = buildPartSearchUrls(part);
+  return `
+    <article class="module-card part-card">
+      <div class="module-card-head">
+        <div>
+          <p class="label">${escapeHtml(part.vehicle)}</p>
+          <h4>${escapeHtml(part.name)}</h4>
+        </div>
+        <span class="status-badge compact" style="--status-color: ${part.status === "Installed" ? "#22c55e" : "#f97316"}">${escapeHtml(part.status)}</span>
+      </div>
+      <div class="module-meta-grid">
+        <span><small>Part #</small><strong>${escapeHtml(part.partNumber || "Unknown")}</strong></span>
+        <span><small>Vendor</small><strong>${escapeHtml(part.vendor || "Open")}</strong></span>
+        <span><small>Qty</small><strong>${escapeHtml(part.quantity)}</strong></span>
+        <span><small>Price</small><strong>${money(part.price)}</strong></span>
+      </div>
+      ${part.notes ? `<p>${escapeHtml(part.notes)}</p>` : ""}
+      <div class="smart-search-grid">
+        ${searchUrls.map((link) => `<a href="${escapeAttr(link.url)}" target="_blank" rel="noreferrer">${escapeHtml(link.label)}</a>`).join("")}
+      </div>
+      <div class="card-action-row">
+        ${partStatuses
+          .filter((status) => status !== part.status)
+          .slice(0, 4)
+          .map((status) => `<button class="ghost-button compact-button" type="button" data-part-status="${escapeAttr(part.id)}" data-status="${escapeAttr(status)}">${escapeHtml(status)}</button>`)
+          .join("")}
+      </div>
+    </article>
+  `;
+}
+
+function renderInventory() {
+  const lowItems = getLowInventoryItems();
+  els.inventoryView.innerHTML = `
+    <div class="module-hero">
+      <div>
+        <p class="label">Garage inventory</p>
+        <h3>Stock levels and shop supplies</h3>
+        <span>Track oils, filters, hardware, tools, electrical supplies, and anything you do not want to discover missing mid-job.</span>
+      </div>
+      <button class="save-button" type="button" data-open-quick-add="inventory">${icon("plus")} Add Inventory Item</button>
+    </div>
+
+    <section class="module-toolbar">
+      <div><strong>${state.inventory.length}</strong><span>Items</span></div>
+      <div><strong>${lowItems.length}</strong><span>Low alerts</span></div>
+      <div><strong>${money(state.inventory.reduce((total, item) => total + Number(item.cost || 0) * Number(item.quantity || 0), 0))}</strong><span>Stock value</span></div>
+    </section>
+
+    <div class="inventory-grid">
+      ${state.inventory.length ? state.inventory.map(renderInventoryCard).join("") : `<div class="empty-state">Add inventory items to create stock alerts.</div>`}
+    </div>
+  `;
+}
+
+function renderInventoryCard(item) {
+  const status = inventoryStatus(item);
+  return `
+    <article class="module-card inventory-card status-${escapeAttr(slugify(status.label))}">
+      <div class="module-card-head">
+        <div>
+          <p class="label">${escapeHtml(item.category)}</p>
+          <h4>${escapeHtml(item.name)}</h4>
+        </div>
+        <span class="status-badge compact" style="--status-color: ${status.color}">${icon(status.icon)} ${escapeHtml(status.label)}</span>
+      </div>
+      <div class="module-meta-grid">
+        <span><small>Quantity</small><strong>${escapeHtml(item.quantity)} ${escapeHtml(item.unit)}</strong></span>
+        <span><small>Minimum</small><strong>${escapeHtml(item.minimumStock)} ${escapeHtml(item.unit)}</strong></span>
+        <span><small>Location</small><strong>${escapeHtml(item.storageLocation || "Not set")}</strong></span>
+        <span><small>Vendor</small><strong>${escapeHtml(item.preferredVendor || "Open")}</strong></span>
+      </div>
+      ${item.notes ? `<p>${escapeHtml(item.notes)}</p>` : ""}
+    </article>
+  `;
+}
+
+function renderInspections() {
+  els.inspectionsView.innerHTML = `
+    <div class="module-hero">
+      <div>
+        <p class="label">Digital inspections</p>
+        <h3>Reusable checklists</h3>
+        <span>Templates support Pass, Monitor, and Fail results with notes and photo placeholders.</span>
+      </div>
+      <button class="save-button" type="button" data-open-quick-add="inspection">${icon("plus")} Add Inspection</button>
+    </div>
+
+    <section class="template-chip-grid" aria-label="Inspection templates">
+      ${inspectionTemplates.map((template) => `<span>${escapeHtml(template)}</span>`).join("")}
+    </section>
+
+    <div class="inspection-grid">
+      ${state.inspections.length ? state.inspections.map(renderInspectionCard).join("") : `<div class="empty-state">Add an inspection to start building history.</div>`}
+    </div>
+  `;
+}
+
+function renderInspectionCard(inspection) {
+  const counts = inspection.items.reduce(
+    (total, item) => {
+      total[item.result] += 1;
+      return total;
+    },
+    { Pass: 0, Monitor: 0, Fail: 0 }
+  );
+
+  return `
+    <article class="module-card inspection-card">
+      <div class="module-card-head">
+        <div>
+          <p class="label">${escapeHtml(inspection.vehicle)} / ${escapeHtml(formatDate(inspection.date))}</p>
+          <h4>${escapeHtml(inspection.template)}</h4>
+        </div>
+        <span class="status-badge compact" style="--status-color: ${counts.Fail ? "#fb7185" : counts.Monitor ? "#f97316" : "#22c55e"}">${counts.Fail ? "Fail" : counts.Monitor ? "Monitor" : "Pass"}</span>
+      </div>
+      <div class="inspection-score-row">
+        <span><strong>${counts.Pass}</strong><small>Pass</small></span>
+        <span><strong>${counts.Monitor}</strong><small>Monitor</small></span>
+        <span><strong>${counts.Fail}</strong><small>Fail</small></span>
+      </div>
+      ${inspection.summary ? `<p>${escapeHtml(inspection.summary)}</p>` : ""}
+      <div class="inspection-item-list">
+        ${inspection.items.map((item) => `<div><strong>${escapeHtml(item.label)}</strong><span class="${escapeAttr(slugify(item.result))}">${escapeHtml(item.result)}</span><small>${escapeHtml(item.notes || "")}</small></div>`).join("")}
+      </div>
+    </article>
+  `;
+}
+
+function renderRestock() {
+  const items = getLowInventoryItems();
+  els.restockView.innerHTML = `
+    <div class="module-hero">
+      <div>
+        <p class="label">Restock center</p>
+        <h3>Suggested purchases</h3>
+        <span>Low and out-of-stock items collect here so supply runs stay organized.</span>
+      </div>
+      <button class="save-button" type="button" data-open-quick-add="inventory">${icon("plus")} Add Inventory Item</button>
+    </div>
+
+    <div class="restock-list">
+      ${items.length ? items.map(renderRestockItem).join("") : `<div class="empty-state">No restock recommendations right now.</div>`}
+    </div>
+  `;
+}
+
+function renderRestockItem(item) {
+  const status = inventoryStatus(item);
+  const missing = Math.max(0, Number(item.minimumStock || 0) - Number(item.quantity || 0));
+  return `
+    <article class="restock-card">
+      <div>
+        <p class="label">${escapeHtml(item.category)}</p>
+        <h4>${escapeHtml(item.name)}</h4>
+        <span>${escapeHtml(status.label)} / missing ${escapeHtml(missing)} ${escapeHtml(item.unit)}</span>
+      </div>
+      <div class="card-action-row">
+        ${item.restockLink ? `<a class="ghost-button compact-button" href="${escapeAttr(item.restockLink)}" target="_blank" rel="noreferrer">Open Vendor Link</a>` : ""}
+        <button class="ghost-button compact-button" type="button" data-mark-purchased="${escapeAttr(item.id)}">Mark Purchased</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderExpenses() {
+  const expenses = getRecentExpenses();
+  const monthly = sumCost(expenses.filter((entry) => String(entry.date || "").startsWith(today().slice(0, 7))));
+  const yearly = sumCost(expenses.filter((entry) => String(entry.date || "").startsWith(today().slice(0, 4))));
+  const perVehicle = state.vehicles.map((vehicle) => ({
+    vehicle: vehicle.name,
+    total: sumCost(expenses.filter((entry) => entry.vehicle === vehicle.name))
+  }));
+
+  els.expensesView.innerHTML = `
+    <div class="module-hero">
+      <div>
+        <p class="label">Garage expenses</p>
+        <h3>Spending by month, year, and vehicle</h3>
+        <span>Expenses still save as timeline entries, so costs stay connected to vehicle history.</span>
+      </div>
+      <button class="save-button" type="button" data-open-quick-add="expense">${icon("plus")} Add Expense</button>
+    </div>
+
+    <section class="module-toolbar">
+      <div><strong>${money(monthly)}</strong><span>This month</span></div>
+      <div><strong>${money(yearly)}</strong><span>This year</span></div>
+      <div><strong>${money(sumCost(expenses))}</strong><span>Total logged</span></div>
+    </section>
+
+    <div class="dashboard-layout">
+      <section class="dashboard-panel">
+        <div class="panel-heading"><div><p class="label">By vehicle</p><h4>Spending split</h4></div></div>
+        <div class="expense-bars">
+          ${perVehicle.map((item) => renderExpenseBar(item, Math.max(...perVehicle.map((vehicle) => vehicle.total), 1))).join("")}
+        </div>
+      </section>
+      <section class="dashboard-panel">
+        <div class="panel-heading"><div><p class="label">Recent</p><h4>Latest expenses</h4></div><span>${expenses.length}</span></div>
+        <div class="timeline-list">
+          ${expenses.slice(0, 8).map((entry) => `<button class="timeline-line expense-line" type="button" data-open-entry="${escapeAttr(entry.id)}"><span class="timeline-line-icon">${icon("receipt")}</span><span><strong>${escapeHtml(entry.title)}</strong><small>${escapeHtml(entry.vehicle)} / ${escapeHtml(entry.expenseCategory || "Other")} / ${escapeHtml(formatDate(entry.date))}</small></span><b>${money(entry.cost)}</b></button>`).join("")}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderExpenseBar(item, maxValue) {
+  const width = Math.round((item.total / maxValue) * 100);
+  return `
+    <div class="expense-bar">
+      <div><strong>${escapeHtml(item.vehicle)}</strong><span>${money(item.total)}</span></div>
+      <b><span style="width: ${width}%"></span></b>
+    </div>
+  `;
+}
+
+function renderScheduler() {
+  const schedules = getMaintenanceScheduleStatus();
+  const overdue = schedules.filter((schedule) => schedule.statusKind === "Overdue").length;
+  const dueSoon = schedules.filter((schedule) => schedule.statusKind === "Due Soon").length;
+
+  els.schedulerView.innerHTML = `
+    <div class="module-hero">
+      <div>
+        <p class="label">Maintenance scheduler</p>
+        <h3>Recurring service tracking</h3>
+        <span>Track service by mileage, date, or both. Visual alerts are ready now; future notifications can use this same data.</span>
+      </div>
+      <button class="save-button" type="button" data-open-quick-add="schedule">${icon("plus")} Add Schedule</button>
+    </div>
+
+    <section class="module-toolbar">
+      <div><strong>${schedules.length}</strong><span>Schedules</span></div>
+      <div><strong>${dueSoon}</strong><span>Due soon</span></div>
+      <div><strong>${overdue}</strong><span>Overdue</span></div>
+    </section>
+
+    <div class="scheduler-grid">
+      ${schedules.length ? schedules.map(renderScheduleCard).join("") : `<div class="empty-state">Add recurring service schedules to see due-soon and overdue work.</div>`}
+    </div>
+
+    <section class="dashboard-panel module-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="label">Notification prep</p>
+          <h4>Visual alerts only for now</h4>
+        </div>
+      </div>
+      <div class="template-chip-grid">
+        ${state.notificationPrep.map((item) => `<span>${escapeHtml(item.type)}</span>`).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderScheduleCard(schedule) {
+  const statusColor = schedule.statusKind === "Overdue" ? "#fb7185" : schedule.statusKind === "Due Soon" ? "#f97316" : "#22c55e";
+  return `
+    <article class="module-card schedule-card">
+      <div class="module-card-head">
+        <div>
+          <p class="label">${escapeHtml(schedule.vehicle)} / ${escapeHtml(schedule.intervalMode)}</p>
+          <h4>${escapeHtml(schedule.title)}</h4>
+        </div>
+        <span class="status-badge compact" style="--status-color: ${statusColor}">${escapeHtml(schedule.statusKind)}</span>
+      </div>
+      <div class="module-meta-grid">
+        <span><small>Next date</small><strong>${escapeHtml(schedule.nextDueDate ? formatDate(schedule.nextDueDate) : "Not set")}</strong></span>
+        <span><small>Next mileage</small><strong>${escapeHtml(schedule.nextDueMileage || "Not set")}</strong></span>
+        <span><small>Last date</small><strong>${escapeHtml(schedule.lastDoneDate ? formatDate(schedule.lastDoneDate) : "Unknown")}</strong></span>
+        <span><small>Last mileage</small><strong>${escapeHtml(schedule.lastDoneMileage || "Unknown")}</strong></span>
+      </div>
+      ${schedule.notes ? `<p>${escapeHtml(schedule.notes)}</p>` : ""}
+      <div class="card-action-row">
+        <button class="ghost-button compact-button" type="button" data-complete-schedule="${escapeAttr(schedule.id)}">Mark Done Today</button>
+      </div>
+    </article>
+  `;
+}
+
+function renderDetailModal() {
+  if (!detailModalOpen) {
+    els.detailModal.classList.remove("is-open");
+    els.detailModal.setAttribute("aria-hidden", "true");
+    els.detailModal.innerHTML = "";
+    return;
+  }
+
+  els.detailModal.classList.add("is-open");
+  els.detailModal.setAttribute("aria-hidden", "false");
+  els.detailModal.innerHTML = detailModalType === "repairJob" ? renderRepairJobDetailModal() : "";
+}
+
+function renderRepairJobDetailModal() {
+  const job = state.repairJobs.find((item) => item.id === detailModalId);
+  if (!job) return "";
+  const totalCost = Number(job.partsCost || 0) + Number(job.laborValue || 0);
+
+  return `
+    <div class="quick-add-backdrop" data-detail-backdrop>
+      <section class="quick-add-dialog detail-dialog" role="dialog" aria-modal="true" aria-labelledby="repairJobDetailTitle">
+        <div class="quick-add-head">
+          <div>
+            <p class="label">${escapeHtml(job.vehicle)} work order</p>
+            <h3 id="repairJobDetailTitle">${escapeHtml(job.title)}</h3>
+          </div>
+          <button class="icon-button modal-close" type="button" data-close-detail aria-label="Close repair job detail">
+            ${icon("close")}
+          </button>
+        </div>
+
+        <form class="quick-add-form repair-detail-form" id="repairJobDetailForm" data-job-id="${escapeAttr(job.id)}" autocomplete="off">
+          ${renderQuickAddVehicleFieldFor(job.vehicle)}
+          <label class="field-wide">
+            <span>Job title</span>
+            <input name="title" type="text" value="${escapeAttr(job.title)}" required />
+          </label>
+          <label>
+            <span>Priority</span>
+            <select name="priority">${renderPriorityOptions(job.priority)}</select>
+          </label>
+          <label>
+            <span>Status</span>
+            <select name="status">${renderRepairJobStatusOptions(job.status)}</select>
+          </label>
+          <label>
+            <span>Parts status</span>
+            <select name="partsStatus">${renderPartStatusOptions(job.partsStatus)}</select>
+          </label>
+          <label>
+            <span>Scheduled date</span>
+            <input name="scheduledDate" type="date" value="${escapeAttr(job.scheduledDate)}" />
+          </label>
+          <label>
+            <span>Scheduled time</span>
+            <input name="scheduledTime" type="time" value="${escapeAttr(job.scheduledTime)}" />
+          </label>
+          <label>
+            <span>Estimated hours</span>
+            <input name="estimatedHours" type="number" min="0" step="0.25" value="${escapeAttr(job.estimatedHours)}" />
+          </label>
+          <label>
+            <span>Estimated cost</span>
+            <input name="estimatedCost" type="number" min="0" step="0.01" value="${escapeAttr(job.estimatedCost)}" />
+          </label>
+
+          <div class="form-section-title field-wide">Diagnosis</div>
+          <label class="field-wide"><span>Symptoms</span><textarea name="symptoms" rows="3">${escapeHtml(job.symptoms)}</textarea></label>
+          <label class="field-wide"><span>Testing performed</span><textarea name="testingPerformed" rows="3">${escapeHtml(job.testingPerformed)}</textarea></label>
+          <label class="field-wide"><span>Results</span><textarea name="results" rows="3">${escapeHtml(job.results)}</textarea></label>
+          <label class="field-wide"><span>Suspected causes</span><textarea name="suspectedCauses" rows="3">${escapeHtml(job.suspectedCauses)}</textarea></label>
+          <label class="field-wide"><span>Final diagnosis</span><textarea name="finalDiagnosis" rows="3">${escapeHtml(job.finalDiagnosis)}</textarea></label>
+
+          <div class="form-section-title field-wide">Repair</div>
+          <label class="field-wide"><span>Steps performed</span><textarea name="stepsPerformed" rows="4">${escapeHtml(job.stepsPerformed)}</textarea></label>
+          <label class="field-wide"><span>Notes</span><textarea name="notes" rows="3">${escapeHtml(job.notes)}</textarea></label>
+          <label class="field-wide"><span>Photos</span><textarea name="photos" rows="2" placeholder="Photo placeholder or filenames">${escapeHtml(job.photos)}</textarea></label>
+          <label class="field-wide"><span>Videos placeholder</span><textarea name="videoPlaceholder" rows="2" placeholder="Video notes or future links">${escapeHtml(job.videoPlaceholder)}</textarea></label>
+
+          <div class="form-section-title field-wide">Cost Tracking</div>
+          <label><span>Parts cost</span><input name="partsCost" type="number" min="0" step="0.01" value="${escapeAttr(job.partsCost)}" /></label>
+          <label><span>Labor value</span><input name="laborValue" type="number" min="0" step="0.01" value="${escapeAttr(job.laborValue)}" /></label>
+          <div class="cost-preview field-wide"><span>Total Cost</span><strong>${money(totalCost)}</strong></div>
+
+          <div class="form-section-title field-wide">Inventory Needed</div>
+          <div class="job-inventory-picker field-wide">
+            <select id="jobInventoryItemSelect">${state.inventory.map((item) => `<option value="${escapeAttr(item.id)}">${escapeHtml(item.name)} (${escapeHtml(item.quantity)} ${escapeHtml(item.unit)})</option>`).join("")}</select>
+            <input id="jobInventoryQtyInput" type="number" min="0.01" step="0.01" value="1" aria-label="Inventory quantity" />
+            <button class="ghost-button compact-button" type="button" data-add-job-inventory>Add</button>
+          </div>
+          <div class="job-inventory-list field-wide">
+            ${renderJobInventoryNeeds(job)}
+          </div>
+
+          <div class="form-section-title field-wide">Completion</div>
+          <label class="field-wide"><span>Resolution</span><textarea name="resolution" rows="3">${escapeHtml(job.resolution)}</textarea></label>
+          <label class="field-wide"><span>Lessons learned</span><textarea name="lessonsLearned" rows="3">${escapeHtml(job.lessonsLearned)}</textarea></label>
+          <label class="field-wide"><span>Final notes</span><textarea name="finalNotes" rows="3">${escapeHtml(job.finalNotes)}</textarea></label>
+
+          <div class="modal-actions field-wide">
+            <button class="ghost-button" type="button" data-close-detail>Cancel</button>
+            <button class="save-button" type="submit">${icon("save")} Save Work Order</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  `;
+}
+
+function renderJobInventoryNeeds(job) {
+  if (!job.inventoryNeeds.length) return `<div class="empty-state compact-dashboard">No inventory attached yet.</div>`;
+  return job.inventoryNeeds
+    .map((need) => {
+      const item = state.inventory.find((inventoryItem) => inventoryItem.id === need.inventoryId);
+      if (!item) return "";
+      const missing = Math.max(0, Number(need.quantity || 0) - Number(item.quantity || 0));
+      return `
+        <div class="job-inventory-row">
+          <span><strong>${escapeHtml(item.name)}</strong><small>Need ${escapeHtml(need.quantity)} ${escapeHtml(item.unit)} / available ${escapeHtml(item.quantity)} ${escapeHtml(item.unit)}${missing ? ` / missing ${escapeHtml(missing)}` : ""}</small></span>
+          <button class="icon-button" type="button" data-remove-job-inventory="${escapeAttr(item.id)}" aria-label="Remove ${escapeAttr(item.name)}">${icon("trash")}</button>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function openDetailModal(type, id) {
+  detailModalOpen = true;
+  detailModalType = type;
+  detailModalId = id;
+  renderDetailModal();
+}
+
+function closeDetailModal() {
+  detailModalOpen = false;
+  detailModalType = "";
+  detailModalId = "";
+  renderDetailModal();
+}
+
+function updateRepairJobStatus(jobId, status) {
+  if (!repairJobStatuses.includes(status)) return;
+  state.repairJobs = state.repairJobs.map((job) => {
+    if (job.id !== jobId) return job;
+    const updated = normalizeRepairJob({
+      ...job,
+      status,
+      partsStatus: inferPartsStatusFromJobStatus(status, job.partsStatus),
+      completedAt: status === "Completed" ? today() : ""
+    });
+    if (status === "Completed" && !updated.inventoryDeducted) {
+      deductInventoryForJob(updated);
+      updated.inventoryDeducted = true;
+    }
+    return updated;
+  });
+  saveState();
+  render();
+}
+
+function saveRepairJobDetail(form) {
+  const jobId = form.dataset.jobId;
+  const current = state.repairJobs.find((job) => job.id === jobId);
+  if (!current) return;
+  const formData = new FormData(form);
+  const status = String(formData.get("status") || current.status);
+  const updated = normalizeRepairJob({
+    ...current,
+    vehicle: String(formData.get("vehicle") || current.vehicle),
+    title: String(formData.get("title") || "").trim(),
+    priority: String(formData.get("priority") || "High"),
+    status,
+    partsStatus: String(formData.get("partsStatus") || current.partsStatus),
+    scheduledDate: String(formData.get("scheduledDate") || ""),
+    scheduledTime: String(formData.get("scheduledTime") || ""),
+    estimatedHours: String(formData.get("estimatedHours") || ""),
+    estimatedCost: Number.parseFloat(formData.get("estimatedCost") || "0"),
+    symptoms: String(formData.get("symptoms") || "").trim(),
+    testingPerformed: String(formData.get("testingPerformed") || "").trim(),
+    results: String(formData.get("results") || "").trim(),
+    suspectedCauses: String(formData.get("suspectedCauses") || "").trim(),
+    finalDiagnosis: String(formData.get("finalDiagnosis") || "").trim(),
+    stepsPerformed: String(formData.get("stepsPerformed") || "").trim(),
+    notes: String(formData.get("notes") || "").trim(),
+    photos: String(formData.get("photos") || "").trim(),
+    videoPlaceholder: String(formData.get("videoPlaceholder") || "").trim(),
+    partsCost: Number.parseFloat(formData.get("partsCost") || "0"),
+    laborValue: Number.parseFloat(formData.get("laborValue") || "0"),
+    resolution: String(formData.get("resolution") || "").trim(),
+    lessonsLearned: String(formData.get("lessonsLearned") || "").trim(),
+    finalNotes: String(formData.get("finalNotes") || "").trim(),
+    completedAt: status === "Completed" ? current.completedAt || today() : ""
+  });
+  if (!updated.title) return;
+  if (updated.status === "Completed" && !updated.inventoryDeducted) {
+    deductInventoryForJob(updated);
+    updated.inventoryDeducted = true;
+  }
+  state.repairJobs = state.repairJobs.map((job) => (job.id === jobId ? updated : job));
+  selectedVehicle = updated.vehicle;
+  saveState();
+  render();
+}
+
+function deductInventoryForJob(job) {
+  job.inventoryNeeds.forEach((need) => {
+    state.inventory = state.inventory.map((item) => {
+      if (item.id !== need.inventoryId) return item;
+      return {
+        ...item,
+        quantity: Math.max(0, Number(item.quantity || 0) - Number(need.quantity || 0))
+      };
+    });
+  });
+}
+
+function addInventoryNeedToActiveJob() {
+  const job = state.repairJobs.find((item) => item.id === detailModalId);
+  const itemId = document.querySelector("#jobInventoryItemSelect")?.value || "";
+  const quantity = Number.parseFloat(document.querySelector("#jobInventoryQtyInput")?.value || "0");
+  if (!job || !itemId || quantity <= 0) return;
+  const existing = job.inventoryNeeds.find((need) => need.inventoryId === itemId);
+  const nextNeeds = existing
+    ? job.inventoryNeeds.map((need) => (need.inventoryId === itemId ? { ...need, quantity: need.quantity + quantity } : need))
+    : [...job.inventoryNeeds, { inventoryId: itemId, quantity }];
+  state.repairJobs = state.repairJobs.map((item) => (item.id === job.id ? normalizeRepairJob({ ...item, inventoryNeeds: nextNeeds }) : item));
+  saveState();
+  renderDetailModal();
+}
+
+function removeInventoryNeedFromActiveJob(itemId) {
+  const job = state.repairJobs.find((item) => item.id === detailModalId);
+  if (!job) return;
+  state.repairJobs = state.repairJobs.map((item) =>
+    item.id === job.id ? normalizeRepairJob({ ...item, inventoryNeeds: item.inventoryNeeds.filter((need) => need.inventoryId !== itemId) }) : item
+  );
+  saveState();
+  renderDetailModal();
+}
+
+function updatePartStatus(partId, status) {
+  if (!partStatuses.includes(status)) return;
+  state.parts = state.parts.map((part) => (part.id === partId ? { ...part, status } : part));
+  saveState();
+  render();
+}
+
+function markInventoryPurchased(itemId) {
+  state.inventory = state.inventory.map((item) => {
+    if (item.id !== itemId) return item;
+    return {
+      ...item,
+      quantity: Math.max(Number(item.quantity || 0), Number(item.minimumStock || 0)),
+      lastPurchasedDate: today()
+    };
+  });
+  saveState();
+  render();
+}
+
+function completeMaintenanceSchedule(scheduleId) {
+  state.maintenanceSchedules = state.maintenanceSchedules.map((schedule) => {
+    if (schedule.id !== scheduleId) return schedule;
+    const profile = getProfile(schedule.vehicle);
+    const currentMileage = Number.parseFloat(vehicleMileage(profile) || "0") || "";
+    const nextDueMileage = currentMileage && schedule.intervalMileage ? currentMileage + Number(schedule.intervalMileage) : schedule.nextDueMileage;
+    const nextDueDate = schedule.intervalMonths ? addMonthsToDate(today(), Number(schedule.intervalMonths)) : schedule.nextDueDate;
+    return normalizeMaintenanceSchedule({
+      ...schedule,
+      lastDoneDate: today(),
+      lastDoneMileage: currentMileage || schedule.lastDoneMileage,
+      nextDueMileage,
+      nextDueDate,
+      status: "Scheduled"
+    });
+  });
+  saveState();
+  render();
+}
+
+function addMonthsToDate(date, months) {
+  const parsed = new Date(`${date}T12:00:00`);
+  if (Number.isNaN(parsed.getTime()) || !months) return "";
+  parsed.setMonth(parsed.getMonth() + months);
+  return parsed.toISOString().slice(0, 10);
+}
+
+function compareRepairJobs(a, b) {
+  const priorityDiff = priorityWeight(b.priority) - priorityWeight(a.priority);
+  if (priorityDiff) return priorityDiff;
+  const statusDiff = repairJobStatuses.indexOf(a.status) - repairJobStatuses.indexOf(b.status);
+  if (statusDiff) return statusDiff;
+  return String(a.scheduledDate || a.createdAt || "").localeCompare(String(b.scheduledDate || b.createdAt || ""));
+}
+
+function inferPartsStatusFromJobStatus(status, fallback = "Researching") {
+  if (status === "Parts Needed") return "Needed";
+  if (status === "Parts Ordered") return "Ordered";
+  if (status === "Completed") return "Installed";
+  return partStatuses.includes(fallback) ? fallback : "Researching";
+}
+
+function inventoryStatus(item) {
+  if (Number(item.quantity || 0) <= 0) return { label: "Out of Stock", icon: "warning", color: "#fb7185" };
+  if (Number(item.quantity || 0) <= Number(item.minimumStock || 0)) return { label: "Low Stock", icon: "alert", color: "#f97316" };
+  return { label: "In Stock", icon: "check", color: "#22c55e" };
+}
+
+function getLowInventoryItems() {
+  return state.inventory.filter((item) => inventoryStatus(item).label !== "In Stock");
+}
+
+function inventoryToDashboardItem(item) {
+  const status = inventoryStatus(item);
+  return {
+    id: item.id,
+    source: "inventory",
+    sourceLabel: "Inventory",
+    vehicle: selectedVehicle,
+    category: "inventory",
+    typeLabel: item.category,
+    title: `${item.name} is ${status.label.toLowerCase()}`,
+    status: status.label,
+    statusSymbol: status.label === "Out of Stock" ? "urgent" : "attention",
+    statusLabel: status.label,
+    priority: status.label === "Out of Stock" ? "Critical" : "High",
+    flagged: true,
+    scheduledDate: "",
+    scheduledTime: "",
+    durationHours: "",
+    createdDate: "",
+    notes: item.notes || ""
+  };
+}
+
+function getMaintenanceScheduleStatus() {
+  return state.maintenanceSchedules.map((schedule) => {
+    const profile = getProfile(schedule.vehicle);
+    const currentMileage = Number.parseFloat(vehicleMileage(profile) || "0") || 0;
+    const nextMileage = Number(schedule.nextDueMileage || 0);
+    const daysUntil = schedule.nextDueDate ? scheduleDaysUntil(schedule.nextDueDate) : Number.POSITIVE_INFINITY;
+    const mileageUntil = nextMileage ? nextMileage - currentMileage : Number.POSITIVE_INFINITY;
+    const statusKind = daysUntil < 0 || mileageUntil < 0 ? "Overdue" : daysUntil <= 30 || mileageUntil <= 500 ? "Due Soon" : "Scheduled";
+    return {
+      ...schedule,
+      statusKind,
+      scheduledDate: schedule.nextDueDate || "",
+      priority: statusKind === "Overdue" ? "Critical" : statusKind === "Due Soon" ? "High" : "Low"
+    };
+  });
+}
+
+function maintenanceToDashboardItem(schedule) {
+  return {
+    id: schedule.id,
+    source: "maintenanceSchedule",
+    sourceLabel: "Scheduler",
+    vehicle: schedule.vehicle,
+    category: "maintenance",
+    typeLabel: "Maintenance Schedule",
+    title: `${schedule.title} ${schedule.statusKind.toLowerCase()}`,
+    status: schedule.statusKind,
+    statusSymbol: schedule.statusKind === "Overdue" ? "urgent" : schedule.statusKind === "Due Soon" ? "dueSoon" : "good",
+    statusLabel: schedule.statusKind,
+    priority: schedule.priority,
+    flagged: schedule.statusKind !== "Scheduled",
+    scheduledDate: schedule.nextDueDate || "",
+    scheduledTime: "",
+    durationHours: "",
+    createdDate: schedule.lastDoneDate || "",
+    notes: schedule.notes || ""
+  };
+}
+
+function buildPartSearchUrls(part) {
+  const profile = getProfile(part.vehicle);
+  const query = [profile.year, profile.make, profile.model || part.vehicle, profile.trim, part.name, part.partNumber].filter(Boolean).join(" ");
+  const encoded = encodeURIComponent(query);
+  return [
+    { label: "Google", url: `https://www.google.com/search?q=${encoded}` },
+    { label: "RockAuto", url: `https://www.google.com/search?q=${encodeURIComponent(`site:rockauto.com ${query}`)}` },
+    { label: "Amazon", url: `https://www.amazon.com/s?k=${encoded}` },
+    { label: "eBay", url: `https://www.ebay.com/sch/i.html?_nkw=${encoded}` },
+    { label: "AutoZone", url: `https://www.autozone.com/searchresult?searchText=${encoded}` },
+    { label: "O'Reilly", url: `https://www.oreillyauto.com/search?q=${encoded}` },
+    { label: "Advance", url: `https://shop.advanceautoparts.com/web/SearchResults?searchTerm=${encoded}` },
+    { label: "NAPA", url: `https://www.napaonline.com/en/search?text=${encoded}` }
+  ];
+}
+
+function defaultInspectionItems(template) {
+  const common = {
+    "Pre-Purchase Inspection": ["Exterior condition", "Interior condition", "Engine bay", "Leaks", "Road test", "Codes scan"],
+    "Oil Change Inspection": ["Oil level", "Filter installed", "Leaks", "Tires", "Brakes", "Lights"],
+    "Brake Inspection": ["Pad thickness", "Rotor condition", "Brake hoses", "Fluid level", "Parking brake"],
+    "Suspension Inspection": ["Ball joints", "Tie rods", "Control arms", "Shocks/struts", "Wheel bearings"],
+    "Electrical Diagnosis": ["Battery voltage", "Grounds", "Fuses", "Connectors", "Module communication"],
+    "No-Start Diagnosis": ["Battery", "Starter", "Fuel", "Spark", "Codes", "Compression"],
+    "AC Diagnosis": ["Cabin controls", "Compressor command", "Pressure reading", "Leaks", "Blend doors"],
+    "Road Trip Inspection": ["Fluids", "Tires", "Brakes", "Lights", "Belts/hoses", "Emergency kit"]
+  };
+  return (common[template] || common[inspectionTemplates[0]]).map((label) => ({ label, result: "Monitor", notes: "" }));
+}
+
 function renderScheduleGroup(group) {
   if (!group.items.length) return "";
 
@@ -1969,7 +3858,74 @@ function getDashboardItems() {
     notes: item.symptoms || item.testsTried || ""
   }));
 
-  return [...taskItems, ...entryItems, ...diagnosticItems];
+  const repairJobItems = state.repairJobs.map((job) => ({
+    id: job.id,
+    source: "repairJob",
+    sourceLabel: "Repair Board",
+    vehicle: job.vehicle,
+    category: "repairs",
+    typeLabel: "Repair Job",
+    title: job.title,
+    status: job.status,
+    statusSymbol: job.status === "Completed" ? "done" : job.status === "Parts Ordered" ? "parts" : job.status === "Parts Needed" ? "waiting" : priorityWeight(job.priority) >= 4 ? "urgent" : "repair",
+    statusLabel: job.status,
+    priority: job.priority || "High",
+    flagged: priorityWeight(job.priority) >= 3 || ["Parts Needed", "Parts Ordered", "In Progress"].includes(job.status),
+    scheduledDate: job.scheduledDate || "",
+    scheduledTime: job.scheduledTime || "",
+    durationHours: job.estimatedHours || "",
+    createdDate: job.createdAt || "",
+    notes: job.symptoms || job.notes || ""
+  }));
+
+  const partItems = state.parts.map((part) => ({
+    id: part.id,
+    source: "part",
+    sourceLabel: "Parts",
+    vehicle: part.vehicle,
+    category: "parts",
+    typeLabel: "Part",
+    title: part.name,
+    status: part.status,
+    statusSymbol: part.status === "Installed" ? "done" : part.status === "Ordered" ? "parts" : part.status === "Needed" ? "waiting" : "testing",
+    statusLabel: part.status,
+    priority: part.status === "Needed" ? "High" : part.status === "Ordered" ? "Medium" : "Low",
+    flagged: ["Needed", "Ordered"].includes(part.status),
+    scheduledDate: "",
+    scheduledTime: "",
+    durationHours: "",
+    createdDate: "",
+    notes: part.notes || part.partNumber || ""
+  }));
+
+  const inspectionItems = state.inspections.map((inspection) => {
+    const failCount = inspection.items.filter((item) => item.result === "Fail").length;
+    const monitorCount = inspection.items.filter((item) => item.result === "Monitor").length;
+    return {
+      id: inspection.id,
+      source: "inspection",
+      sourceLabel: "Inspections",
+      vehicle: inspection.vehicle,
+      category: "inspection",
+      typeLabel: inspection.template,
+      title: inspection.template,
+      status: failCount ? "Fail" : monitorCount ? "Monitor" : "Pass",
+      statusSymbol: failCount ? "urgent" : monitorCount ? "attention" : "good",
+      statusLabel: failCount ? `${failCount} fail` : monitorCount ? `${monitorCount} monitor` : "Pass",
+      priority: failCount ? "High" : monitorCount ? "Medium" : "Low",
+      flagged: Boolean(failCount),
+      scheduledDate: "",
+      scheduledTime: "",
+      durationHours: "",
+      createdDate: inspection.date || "",
+      notes: inspection.summary || ""
+    };
+  });
+
+  const maintenanceItems = getMaintenanceScheduleStatus().map(maintenanceToDashboardItem);
+  const inventoryItems = getLowInventoryItems().map(inventoryToDashboardItem);
+
+  return [...taskItems, ...entryItems, ...diagnosticItems, ...repairJobItems, ...partItems, ...inspectionItems, ...maintenanceItems, ...inventoryItems];
 }
 
 function getVehicleDashboardSummaries(items) {
@@ -2124,7 +4080,8 @@ function itemPrimaryDate(item) {
 }
 
 function isDoneItem(item) {
-  return String(item.status || "").toLowerCase() === "done" || item.statusSymbol === "done";
+  const status = String(item.status || "").toLowerCase();
+  return ["done", "completed", "installed", "pass"].includes(status) || item.statusSymbol === "done";
 }
 
 function isActiveItem(item) {
@@ -2239,6 +4196,36 @@ function renderEntryStatusOptions(selected = "Logged") {
 function renderDiagnosticStatusOptions(selected = "Open") {
   return diagnosticStatuses
     .map((status) => `<option value="${escapeAttr(status)}" ${status === selected ? "selected" : ""}>${escapeHtml(status)}</option>`)
+    .join("");
+}
+
+function renderRepairJobStatusOptions(selected = "Idea / Concern") {
+  return repairJobStatuses
+    .map((status) => `<option value="${escapeAttr(status)}" ${status === selected ? "selected" : ""}>${escapeHtml(status)}</option>`)
+    .join("");
+}
+
+function renderPartStatusOptions(selected = "Researching") {
+  return partStatuses
+    .map((status) => `<option value="${escapeAttr(status)}" ${status === selected ? "selected" : ""}>${escapeHtml(status)}</option>`)
+    .join("");
+}
+
+function renderInventoryCategoryOptions(selected = "Miscellaneous") {
+  return inventoryCategories
+    .map((category) => `<option value="${escapeAttr(category)}" ${category === selected ? "selected" : ""}>${escapeHtml(category)}</option>`)
+    .join("");
+}
+
+function renderInspectionTemplateOptions(selected = inspectionTemplates[0]) {
+  return inspectionTemplates
+    .map((template) => `<option value="${escapeAttr(template)}" ${template === selected ? "selected" : ""}>${escapeHtml(template)}</option>`)
+    .join("");
+}
+
+function renderMaintenanceIntervalOptions(selected = "Both") {
+  return maintenanceIntervalModes
+    .map((mode) => `<option value="${escapeAttr(mode)}" ${mode === selected ? "selected" : ""}>${escapeHtml(mode)}</option>`)
     .join("");
 }
 
@@ -2704,6 +4691,46 @@ function renderProfile() {
         </div>
       </aside>
     </div>
+
+    ${renderVehicleProfileSections(selectedVehicle)}
+  `;
+}
+
+function renderVehicleProfileSections(vehicle) {
+  const activeRepairs = state.repairJobs.filter((job) => job.vehicle === vehicle && job.status !== "Completed");
+  const maintenanceHistory = getVehicleEntries(vehicle).filter((entry) => entry.category === "maintenance");
+  const installedParts = state.parts.filter((part) => part.vehicle === vehicle && part.status === "Installed");
+  const buildMods = getVehicleEntries(vehicle).filter((entry) => entry.category === "upgrades");
+  const inspections = state.inspections.filter((inspection) => inspection.vehicle === vehicle);
+  const expenses = getVehicleEntries(vehicle).filter((entry) => Number(entry.cost || 0) > 0);
+
+  const sections = [
+    { label: "Active Repairs", value: activeRepairs.length, iconName: "wrench", text: activeRepairs[0]?.title || "No active repair jobs." },
+    { label: "Maintenance History", value: maintenanceHistory.length, iconName: "calendar", text: maintenanceHistory[0]?.title || "No maintenance history yet." },
+    { label: "Installed Parts", value: installedParts.length, iconName: "tag", text: installedParts[0]?.name || "No installed parts tracked." },
+    { label: "Build Modifications", value: buildMods.length, iconName: "bolt", text: buildMods[0]?.title || "No modifications logged yet." },
+    { label: "Inspection Reports", value: inspections.length, iconName: "check", text: inspections[0]?.template || "No inspections yet." },
+    { label: "Expenses", value: money(sumCost(expenses)), iconName: "receipt", text: `${expenses.length} cost entries saved.` },
+    { label: "Documents", value: 0, iconName: "note", text: "Document storage is prepared as a future feature." }
+  ];
+
+  return `
+    <section class="vehicle-profile-sections" aria-label="Vehicle profile sections">
+      ${sections
+        .map(
+          (section) => `
+            <article class="module-card profile-section-card">
+              <span class="dashboard-stat-icon">${icon(section.iconName)}</span>
+              <div>
+                <p class="label">${escapeHtml(section.label)}</p>
+                <h4>${escapeHtml(section.value)}</h4>
+                <span>${escapeHtml(section.text)}</span>
+              </div>
+            </article>
+          `
+        )
+        .join("")}
+    </section>
   `;
 }
 
@@ -3369,6 +5396,7 @@ function icon(name) {
     box: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4-8 4-8-4Z"/><path d="M4 8v8l8 4 8-4V8"/><path d="M12 12v8"/><path d="M8 6l8 4"/></svg>',
     calendar: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4v3"/><path d="M18 4v3"/><path d="M4 8h16"/><path d="M5 6h14v14H5V6Z"/><path d="M8 12h3"/><path d="M13 12h3"/><path d="M8 16h3"/></svg>',
     car: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17h14"/><path d="M6 17l1-6 2-4h6l2 4 1 6"/><path d="M8 17v2"/><path d="M16 17v2"/><path d="M7 11h10"/></svg>',
+    cart: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h2l2 11h10l2-8H8"/><path d="M10 20a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/><path d="M18 20a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/></svg>',
     chevron: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>',
     check: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6L9 17l-5-5"/></svg>',
     clock: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/><path d="M12 7v6l4 2"/></svg>',

@@ -3603,3 +3603,672 @@ textarea {
     width: fit-content;
   }
 }
+
+/* Garage OS shop workflow modules */
+.module-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+  padding: 18px;
+  border: 1px solid rgba(255, 122, 26, 0.28);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(255, 122, 26, 0.14), rgba(255, 255, 255, 0.045) 45%, rgba(255, 255, 255, 0.02));
+  box-shadow: var(--shadow-soft);
+}
+
+.module-hero h3 {
+  margin: 0;
+  font-size: clamp(25px, 4vw, 42px);
+  line-height: 1.05;
+}
+
+.module-hero span,
+.module-copy {
+  display: block;
+  max-width: 760px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.quick-action-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.quick-action-card {
+  display: grid;
+  gap: 8px;
+  min-height: 96px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(8, 10, 12, 0.74);
+  color: var(--ink);
+  text-align: left;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.quick-action-card:hover,
+.quick-action-card:focus-visible {
+  border-color: rgba(255, 122, 26, 0.5);
+  background: rgba(255, 122, 26, 0.1);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.quick-action-card span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 122, 26, 0.16);
+  color: var(--vehicle-accent);
+}
+
+.quick-action-card strong {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.shop-stat-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.garage-os-priorities {
+  margin-bottom: 16px;
+}
+
+.shop-command-row {
+  margin-bottom: 18px;
+}
+
+.mini-job-list {
+  display: grid;
+  gap: 9px;
+}
+
+.mini-command-card {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 70px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  background: rgba(7, 8, 10, 0.62);
+  color: var(--ink);
+  text-align: left;
+}
+
+.mini-command-card:hover,
+.mini-command-card:focus-visible {
+  border-color: rgba(255, 122, 26, 0.44);
+  outline: none;
+}
+
+.mini-command-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 122, 26, 0.14);
+  color: var(--vehicle-accent);
+}
+
+.mini-command-main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mini-command-main strong,
+.module-card h4,
+.restock-card h4 {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.mini-command-main small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.kanban-board {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(250px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scroll-snap-type: x proximity;
+}
+
+.kanban-column {
+  display: grid;
+  align-content: start;
+  min-height: 420px;
+  min-width: 250px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025));
+  box-shadow: var(--shadow-soft);
+  scroll-snap-align: start;
+}
+
+.kanban-column-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.kanban-column-head strong {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.kanban-column-head span {
+  display: grid;
+  min-width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 122, 26, 0.15);
+  color: var(--vehicle-accent);
+  font-weight: 950;
+}
+
+.kanban-card-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.kanban-empty {
+  min-height: 100px;
+  padding: 14px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.repair-job-card {
+  display: grid;
+  gap: 11px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 8px;
+  background: rgba(8, 10, 12, 0.72);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.18);
+  transition: transform 160ms ease, border-color 160ms ease;
+}
+
+.repair-job-card:hover,
+.repair-job-card:focus-within {
+  border-color: rgba(255, 122, 26, 0.48);
+  transform: translateY(-1px);
+}
+
+.repair-job-top {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.repair-job-top strong {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+
+.repair-job-top small,
+.repair-job-card p,
+.repair-job-cost-row,
+.module-card p,
+.restock-card span,
+.profile-section-card span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.repair-job-meta,
+.repair-job-actions,
+.card-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.repair-job-meta span:not(.priority-pill),
+.repair-job-cost-row span {
+  padding: 5px 7px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.repair-job-cost-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.compact-button {
+  min-height: 32px;
+  padding: 0 9px;
+  font-size: 11px;
+}
+
+.module-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.module-toolbar div {
+  display: grid;
+  gap: 5px;
+  min-height: 78px;
+  padding: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(8, 10, 12, 0.68);
+}
+
+.module-toolbar strong {
+  color: #ffffff;
+  font-size: clamp(18px, 2.6vw, 28px);
+}
+
+.module-toolbar span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.parts-grid,
+.inventory-grid,
+.inspection-grid,
+.scheduler-grid,
+.vehicle-profile-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 12px;
+}
+
+.module-card,
+.restock-card,
+.profile-section-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.025));
+  box-shadow: var(--shadow-soft);
+}
+
+.module-card-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.module-card h4,
+.restock-card h4,
+.profile-section-card h4 {
+  color: #ffffff;
+  font-size: 20px;
+  line-height: 1.12;
+}
+
+.module-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.module-meta-grid span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.module-meta-grid small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.module-meta-grid strong {
+  overflow-wrap: anywhere;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+.smart-search-grid,
+.template-chip-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.smart-search-grid a,
+.template-chip-grid span {
+  min-height: 32px;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 122, 26, 0.26);
+  border-radius: 8px;
+  background: rgba(255, 122, 26, 0.09);
+  color: color-mix(in srgb, var(--vehicle-accent) 78%, #ffffff 22%);
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.inspection-score-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.inspection-score-row span {
+  display: grid;
+  place-items: center;
+  min-height: 62px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.inspection-score-row strong {
+  color: #ffffff;
+  font-size: 21px;
+}
+
+.inspection-score-row small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.inspection-item-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.inspection-item-list div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+  padding: 9px;
+  border-radius: 8px;
+  background: rgba(7, 8, 10, 0.56);
+}
+
+.inspection-item-list strong {
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+
+.inspection-item-list span {
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.inspection-item-list span.fail {
+  color: #fb7185;
+}
+
+.inspection-item-list span.monitor {
+  color: #f97316;
+}
+
+.inspection-item-list span.pass {
+  color: #86efac;
+}
+
+.inspection-item-list small {
+  grid-column: 1 / -1;
+  color: var(--muted);
+}
+
+.restock-list {
+  display: grid;
+  gap: 10px;
+}
+
+.restock-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.expense-bars {
+  display: grid;
+  gap: 12px;
+}
+
+.expense-bar {
+  display: grid;
+  gap: 7px;
+}
+
+.expense-bar div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.expense-bar b {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.expense-bar b span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--vehicle-accent);
+}
+
+.detail-dialog {
+  width: min(980px, 100%);
+}
+
+.repair-detail-form {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.repair-detail-form .field-wide,
+.repair-detail-form .form-section-title,
+.repair-detail-form .cost-preview,
+.repair-detail-form .job-inventory-picker,
+.repair-detail-form .job-inventory-list {
+  grid-column: 1 / -1;
+}
+
+.form-section-title {
+  margin-top: 4px;
+  padding: 10px 0 2px;
+  color: color-mix(in srgb, var(--vehicle-accent) 82%, #ffffff 18%);
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.cost-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 122, 26, 0.25);
+  border-radius: 8px;
+  background: rgba(255, 122, 26, 0.09);
+}
+
+.cost-preview span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cost-preview strong {
+  color: #ffffff;
+  font-size: 22px;
+}
+
+.job-inventory-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px auto;
+  gap: 8px;
+}
+
+.job-inventory-list {
+  display: grid;
+  gap: 8px;
+}
+
+.job-inventory-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  background: rgba(7, 8, 10, 0.58);
+}
+
+.job-inventory-row span {
+  display: grid;
+  gap: 4px;
+}
+
+.job-inventory-row small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.vehicle-profile-sections {
+  margin-top: 16px;
+}
+
+.profile-section-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.profile-section-card .dashboard-stat-icon {
+  width: 42px;
+  height: 42px;
+}
+
+@media (max-width: 1180px) {
+  .quick-action-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .shop-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px) {
+  .module-hero,
+  .restock-card {
+    display: grid;
+  }
+
+  .quick-action-grid,
+  .module-toolbar,
+  .repair-detail-form {
+    grid-template-columns: 1fr;
+  }
+
+  .kanban-board {
+    grid-template-columns: repeat(7, minmax(236px, 78vw));
+  }
+}
+
+@media (max-width: 640px) {
+  .quick-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .quick-action-card {
+    min-height: 82px;
+  }
+
+  .shop-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mini-command-card {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .mini-command-card .priority-pill,
+  .mini-command-card .status-badge {
+    grid-column: 2;
+    width: fit-content;
+  }
+
+  .module-meta-grid,
+  .inspection-score-row,
+  .job-inventory-picker {
+    grid-template-columns: 1fr;
+  }
+
+  .kanban-column {
+    min-height: 360px;
+  }
+}
